@@ -1,0 +1,16 @@
+[10548:5212:0612/204850.553:WARNING:chrome_main_delegate.cc(742)] This is Chrome version 125.0.6422.142 (not a warning)
+[10548:5212:0612/204850.595:INFO:chrome_browser_cloud_management_controller.cc(168)] Starting CBCM Controller Initialization
+[10548:5212:0612/204850.595:INFO:chrome_browser_cloud_management_controller.cc(196)] No machine level policy manager exists.
+[10548:5212:0612/204850.615:WARNING:browser_management_service.cc(128)] EnterpriseLogoUrl fetch failed with error code -1 and MIME type 
+[10548:5212:0612/204851.244:INFO:CONSOLE(0)] "Error with Permissions-Policy header: Unrecognized feature: 'battery'.", source:  (0)
+[10548:5212:0612/204851.247:INFO:CONSOLE(0)] "Error with Permissions-Policy header: Origin trial controlled feature not enabled: 'interest-cohort'.", source:  (0)
+[10548:5212:0612/204851.247:INFO:CONSOLE(0)] "Error with Permissions-Policy header: Origin trial controlled feature not enabled: 'shared-storage'.", source:  (0)
+[10548:5212:0612/204851.247:INFO:CONSOLE(0)] "Error with Permissions-Policy header: Origin trial controlled feature not enabled: 'shared-storage-select-url'.", source:  (0)
+[10548:5212:0612/204851.247:INFO:CONSOLE(0)] "Error with Permissions-Policy header: Unrecognized feature: 'usb-unrestricted'.", source:  (0)
+[14688:8404:0612/204851.569:WARNING:angle_platform_impl.cc(49)] HLSLCompiler.cpp:250 (rx::HLSLCompiler::compileToBinary): 
+C:\fakepath(130,3-70): warning X3557: loop only executes for 1 iteration(s), forcing loop to unroll
+
+[10548:5212:0612/204853.488:INFO:CONSOLE(131)] "Event handler of 'x-storagemutated-1' event must be added on the initial evaluation of worker script.", source: https://static.whatsapp.net/rsrc.php/v3/yj/r/AFhB57galHc.js?_nc_x=Ij3Wp8lg5Kz (131)
+[14340:10780:0612/204853.887:WARNING:sqlite_persistent_store_backend_base.cc(198)] Failed to post task from FlushAndNotifyInBackground@net\extras\sqlite\sqlite_persistent_store_backend_base.cc:247 to client_task_runner_.
+[14340:10780:0612/204853.887:WARNING:sqlite_persistent_store_backend_base.cc(198)] Failed to post task from FlushAndNotifyInBackground@net\extras\sqlite\sqlite_persistent_store_backend_base.cc:247 to client_task_runner_.
+[10548:5212:0612/204853.950:WARNING:pref_notifier_impl.cc(41)] Pref observer for media_router.cast_allow_all_ips found at shutdown.
