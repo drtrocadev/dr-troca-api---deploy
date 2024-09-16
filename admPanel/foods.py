@@ -11,28 +11,12 @@ from admPanel.functions import upload_image_and_get_url
 from admPanel.functions import upload_category_cover_and_get_url
 
 adm_foods_blueprint = Blueprint('adm_foods_blueprint', __name__)
-            
-# Variáveis globais para armazenar o cache e o timestamp
-cached_foods = None
-cache_timestamp = 0
-CACHE_TIMEOUT = 300  # 5 minutos em segundos
 
 @adm_foods_blueprint.route('/adm/v2/get_all_foods', methods=['GET'])
 @jwt_required()
 def adm_get_foods_v2():
-    global cached_foods, cache_timestamp
     
-    try:
-        current_time = time.time()
-
-        # Verifica se o cache está vazio ou se expirou
-        if cached_foods and (current_time - cache_timestamp) < CACHE_TIMEOUT:
-            print("Retornando do cache")
-            # Retorna o cache se estiver válido
-            return jsonify(cached_foods)
-        
-        print("Consultando nova lista do banco de dados")
-        
+    try:      
         # SQL Query para buscar todos os alimentos com suas categorias e alergias relacionadas
         sql_query = """
         SELECT 
@@ -62,10 +46,6 @@ def adm_get_foods_v2():
         for item in result:
             item['categories'] = item['categories'].split(', ') if item['categories'] else []
             item['allergens'] = item['allergens'].split(', ') if item['allergens'] else []
-
-        # Atualiza o cache e o timestamp
-        cached_foods = result
-        cache_timestamp = current_time
 
         return jsonify(result)
 
@@ -310,21 +290,23 @@ def adm_edit_food_v2():
 
             # Construindo a query de inserção atualizada
             sql_insert_log = """
-            INSERT INTO food_update_logs (
-                food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url,
-                weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
-                saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats,
-                fibers, calcium, sodium, magnesium, iron, zinc, potassium,
-                vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
-                vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens,
-                changed_by, log_type
-            ) VALUES (%(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(group_id)s, %(image_url)s,
+                INSERT INTO food_update_logs (
+                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url,
+                    weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+                    saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats,
+                    fibers, calcium, sodium, magnesium, iron, zinc, potassium,
+                    vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
+                    vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens,
+                    changed_by, log_type
+                ) VALUES (
+                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s,
                     %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
                     %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
                     %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
                     %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
                     %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(categories)s, %(allergens)s,
-                    %(changed_by)s, %(log_type)s)
+                    %(changed_by)s, %(log_type)s
+                )
             """
 
             execute_query(sql_insert_log, log_data)

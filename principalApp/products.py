@@ -13,26 +13,9 @@ from principalApp.functions import find_not_hangry_similar_foods
 
 products_blueprint = Blueprint('products_blueprint', __name__)
 
-# Variáveis globais para armazenar o cache e o timestamp
-cached_foods = None
-cache_timestamp = 0
-CACHE_TIMEOUT = 300  # 5 minutos em segundos
-
 @products_blueprint.route('/v1/get_all_foods', methods=['GET'])
 def get_foods():
-    global cached_foods, cache_timestamp
-    
     try:
-        current_time = time.time()
-
-        # Verifica se o cache está vazio ou se expirou
-        if cached_foods and (current_time - cache_timestamp) < CACHE_TIMEOUT:
-            print("Retornando do cache")
-            # Retorna o cache se estiver válido
-            return jsonify(cached_foods)
-        
-        print("Consultando nova lista do banco de dados")
-        
         # Consulta SQL para buscar todos os alimentos com categorias, alergias e grupos
         sql_query = """
         SELECT 
@@ -63,10 +46,6 @@ def get_foods():
         
         # Processar os itens de comida (pode ser alguma lógica customizada)
         foods_by_group = process_food_items(result)
-
-        # Atualiza o cache e o timestamp
-        cached_foods = foods_by_group
-        cache_timestamp = current_time
 
         return jsonify(foods_by_group)
     

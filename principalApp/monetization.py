@@ -83,7 +83,7 @@ def request_withdraw():
     except Exception as e:
         return jsonify({"msg": str(e)}), 500
     
-@monetization_blueprint.route('/v1/sign_up_with_referral', methods=['POST'])
+@monetization_blueprint.route('/v1/give_credit_to_user', methods=['POST'])
 @jwt_required()
 def sign_up_with_referral():
     try:
@@ -93,25 +93,38 @@ def sign_up_with_referral():
         valid, error_message = verify_password_change_timestamp(current_user_email, jwt_claims)
         if not valid:
             return jsonify({"statusCode": "401", "message": error_message}), 401
-    
-        data = request.get_json()
-        referral_code = data.get('referral_code')
-
-        if not referral_code:
-            return jsonify({"msg": "Referral code is required"}), 400
 
         user_id = jwt_claims.get("user_id")
 
         connection = db_connection_pool.get_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Step 1: Get the userID of the user who owns the referral code
+        # Step 1: Get the 'invited_by' value and 'already_purchase' of the current user
+        get_invited_by_query = """
+        SELECT invited_by, already_purchase
+        FROM users
+        WHERE userID = %s
+        """
+        cursor.execute(get_invited_by_query, (user_id,))
+        invited_by_user = cursor.fetchone()
+
+        if not invited_by_user:
+            return jsonify({"msg": "User has not been invited by anyone"}), 404
+
+        invited_by = invited_by_user['invited_by']
+        already_purchase = invited_by_user['already_purchase']
+
+        # If the user has already made a purchase, do not insert the transaction
+        if already_purchase:
+            return jsonify({"msg": "User has already made a purchase. No transaction will be added."}), 400
+
+        # Step 2: Get the userID of the user who owns the referral code
         get_referral_user_query = """
         SELECT userID
         FROM users
         WHERE referral_code = %s
         """
-        cursor.execute(get_referral_user_query, (referral_code,))
+        cursor.execute(get_referral_user_query, (invited_by,))
         referral_user = cursor.fetchone()
 
         if not referral_user:
@@ -119,16 +132,24 @@ def sign_up_with_referral():
 
         referral_user_id = referral_user['userID']
 
-        # Step 2: Insert a new transaction
+        # Step 3: Insert a new transaction
         insert_transaction_query = """
         INSERT INTO transactions (user_id, type, amount, status, transaction_date, secondary_user_id)
         VALUES (%s, 'CREDIT', 0, 1, %s, %s)
         """
         cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id))
 
-        # Commit the transaction
+        # Step 4: Update the 'already_purchase' field to true
+        update_already_purchase_query = """
+        UPDATE users
+        SET already_purchase = TRUE
+        WHERE userID = %s
+        """
+        cursor.execute(update_already_purchase_query, (user_id,))
+
+        # Commit the transaction and the update
         connection.commit()
-        return jsonify({"msg": "Transaction added successfully"}), 201
+        return jsonify({"msg": "Transaction added successfully, and already_purchase updated to true."}), 201
 
     except Exception as e:
         # In case of an error, rollback the transaction
@@ -142,6 +163,7 @@ def sign_up_with_referral():
             cursor.close()
         if connection:
             connection.close()
+
 
 def execute_query(query, params, fetch_all=True):
     connection = db_connection_pool.get_connection()
