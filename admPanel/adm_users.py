@@ -11,7 +11,7 @@ db_config = {
     'database': 'u994546528_dr_troca_ap'
 }
 
-db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=10, **db_config)
+db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=4, **db_config)
 
 @adm_users_blueprint.route('/adm/v1/adm_users', methods=['GET'])
 def list_adm_users():
