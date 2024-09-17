@@ -9,17 +9,9 @@ import string
 import time
 from admPanel.functions import execute_query_with_params
 from principalApp.functions import send_email
+from admPanel.auth import db_connection_pool
 
 auth_clients_blueprint = Blueprint('auth_clients', __name__)
-
-db_config = {
-    'host': 'srv1311.hstgr.io',
-    'user': 'u994546528_dr_troca_ap',
-    'password': '1jdus83@L',
-    'database': 'u994546528_dr_troca_ap'
-}
-
-db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=4, **db_config)
 
 @auth_clients_blueprint.route('/v1/login_client', methods=['POST'])
 def login_clients():

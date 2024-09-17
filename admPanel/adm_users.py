@@ -1,17 +1,9 @@
 from flask import Blueprint, request, jsonify
 import mysql.connector.pooling
 from admPanel.functions import execute_query_with_params, execute_query_without_params
+from admPanel.auth import db_connection_pool
 
 adm_users_blueprint = Blueprint('adm_users', __name__)
-
-db_config = {
-    'host': 'srv1311.hstgr.io',
-    'user': 'u994546528_dr_troca_ap',
-    'password': '1jdus83@L',
-    'database': 'u994546528_dr_troca_ap'
-}
-
-db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=4, **db_config)
 
 @adm_users_blueprint.route('/adm/v1/adm_users', methods=['GET'])
 def list_adm_users():

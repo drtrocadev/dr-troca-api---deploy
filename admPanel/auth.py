@@ -14,7 +14,7 @@ db_config = {
     'database': 'u994546528_dr_troca_ap'
 }
 
-db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=4, **db_config)
+db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=5, **db_config)
 
 @auth_blueprint.route('/v1/login', methods=['POST'])
 def login():
