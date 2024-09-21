@@ -134,7 +134,7 @@ def sign_up_with_referral():
 
         # Step 3: Insert a new transaction
         insert_transaction_query = """
-        INSERT INTO transactions (user_id, type, amount, status, transaction_date, secondary_user_id)
+        INSERT INTO pending_transactions (user_id, type, amount, status, transaction_date, secondary_user_id)
         VALUES (%s, 'CREDIT', 0, 1, %s, %s)
         """
         cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id))
