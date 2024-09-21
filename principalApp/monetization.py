@@ -89,15 +89,20 @@ def sign_up_with_referral():
     try:
         current_user_email = get_jwt_identity()
         jwt_claims = get_jwt()
-        
+
         valid, error_message = verify_password_change_timestamp(current_user_email, jwt_claims)
         if not valid:
             return jsonify({"statusCode": "401", "message": error_message}), 401
 
         user_id = jwt_claims.get("user_id")
 
+        # Conectar ao banco de dados
         connection = db_connection_pool.get_connection()
         cursor = connection.cursor(dictionary=True)
+
+        # Obter dados enviados no corpo da requisição
+        data = request.get_json()
+        in_app_transaction_id = data.get('in_app_transaction_id')  # Nova coluna recebida
 
         # Step 1: Get the 'invited_by' value and 'already_purchase' of the current user
         get_invited_by_query = """
@@ -114,7 +119,7 @@ def sign_up_with_referral():
         invited_by = invited_by_user['invited_by']
         already_purchase = invited_by_user['already_purchase']
 
-        # If the user has already made a purchase, do not insert the transaction
+        # Se o usuário já fez uma compra, não insira a transação
         if already_purchase:
             return jsonify({"msg": "User has already made a purchase. No transaction will be added."}), 400
 
@@ -132,14 +137,14 @@ def sign_up_with_referral():
 
         referral_user_id = referral_user['userID']
 
-        # Step 3: Insert a new transaction
+        # Step 3: Insert a new transaction, incluindo o novo campo in_app_transaction_id
         insert_transaction_query = """
-        INSERT INTO pending_transactions (user_id, type, amount, status, transaction_date, secondary_user_id)
-        VALUES (%s, 'CREDIT', 0, 1, %s, %s)
+        INSERT INTO pending_transactions (user_id, type, amount, status, transaction_date, secondary_user_id, in_app_transaction_id)
+        VALUES (%s, 'CREDIT', 0, 1, %s, %s, %s)
         """
-        cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id))
+        cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id, in_app_transaction_id))
 
-        # Step 4: Update the 'already_purchase' field to true
+        # Step 4: Atualizar o campo 'already_purchase' para true
         update_already_purchase_query = """
         UPDATE users
         SET already_purchase = TRUE
@@ -147,23 +152,22 @@ def sign_up_with_referral():
         """
         cursor.execute(update_already_purchase_query, (user_id,))
 
-        # Commit the transaction and the update
+        # Commit a transação e a atualização
         connection.commit()
         return jsonify({"msg": "Transaction added successfully, and already_purchase updated to true."}), 201
 
     except Exception as e:
-        # In case of an error, rollback the transaction
+        # Em caso de erro, fazer rollback da transação
         if connection:
             connection.rollback()
         return jsonify({"msg": str(e)}), 500
 
     finally:
-        # Close the cursor and the connection to the database
+        # Fechar cursor e conexão com o banco de dados
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-
 
 def execute_query(query, params, fetch_all=True):
     connection = db_connection_pool.get_connection()
