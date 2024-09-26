@@ -123,7 +123,19 @@ def sign_up_with_referral():
         if already_purchase:
             return jsonify({"msg": "User has already made a purchase. No transaction will be added."}), 400
 
-        # Step 2: Get the userID of the user who owns the referral code
+        # Step 2: Verificar se o in_app_transaction_id já existe em pending_transactions
+        check_transaction_query = """
+        SELECT COUNT(*) as transaction_count
+        FROM pending_transactions
+        WHERE in_app_transaction_id = %s
+        """
+        cursor.execute(check_transaction_query, (in_app_transaction_id,))
+        transaction_check = cursor.fetchone()
+
+        if transaction_check['transaction_count'] > 0:
+            return jsonify({"msg": "A transaction with this in_app_transaction_id already exists."}), 400
+
+        # Step 3: Get the userID of the user who owns the referral code
         get_referral_user_query = """
         SELECT userID
         FROM users
@@ -137,14 +149,14 @@ def sign_up_with_referral():
 
         referral_user_id = referral_user['userID']
 
-        # Step 3: Insert a new transaction, incluindo o novo campo in_app_transaction_id
+        # Step 4: Insert a new transaction, incluindo o novo campo in_app_transaction_id
         insert_transaction_query = """
         INSERT INTO pending_transactions (user_id, type, amount, status, transaction_date, secondary_user_id, in_app_transaction_id)
         VALUES (%s, 'CREDIT', 0, 1, %s, %s, %s)
         """
         cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id, in_app_transaction_id))
 
-        # Step 4: Atualizar o campo 'already_purchase' para true
+        # Step 5: Atualizar o campo 'already_purchase' para true
         update_already_purchase_query = """
         UPDATE users
         SET already_purchase = TRUE
@@ -168,6 +180,7 @@ def sign_up_with_referral():
             cursor.close()
         if connection:
             connection.close()
+
 
 def execute_query(query, params, fetch_all=True):
     connection = db_connection_pool.get_connection()
