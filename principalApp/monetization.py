@@ -114,6 +114,7 @@ def sign_up_with_referral():
         invited_by_user = cursor.fetchone()
 
         if not invited_by_user:
+            print("User has not been invited by anyone")
             return jsonify({"msg": "User has not been invited by anyone"}), 404
 
         invited_by = invited_by_user['invited_by']
@@ -121,6 +122,7 @@ def sign_up_with_referral():
 
         # Se o usuário já fez uma compra, não insira a transação
         if already_purchase:
+            print("User has already made a purchase. No transaction will be added.")
             return jsonify({"msg": "User has already made a purchase. No transaction will be added."}), 400
 
         # Step 2: Verificar se o in_app_transaction_id já existe em pending_transactions
@@ -133,6 +135,7 @@ def sign_up_with_referral():
         transaction_check = cursor.fetchone()
 
         if transaction_check['transaction_count'] > 0:
+            print("A transaction with this in_app_transaction_id already exists.")
             return jsonify({"msg": "A transaction with this in_app_transaction_id already exists."}), 400
 
         # Step 3: Get the userID of the user who owns the referral code
@@ -145,6 +148,7 @@ def sign_up_with_referral():
         referral_user = cursor.fetchone()
 
         if not referral_user:
+            print("Invalid referral code")
             return jsonify({"msg": "Invalid referral code"}), 404
 
         referral_user_id = referral_user['userID']
