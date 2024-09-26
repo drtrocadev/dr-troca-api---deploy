@@ -49,11 +49,12 @@ def finish_pending_transactions():
         cursor = connection.cursor()
 
         # 1. Selecionar os registros da tabela pending_transactions que foram criados há 7 dias,
-        # incluindo o campo in_app_transaction_id
+        # e cujo status não seja 'FINISHED', incluindo o campo in_app_transaction_id
         select_query = """
         SELECT user_id, type, amount, status, transaction_date, secondary_user_id, invoice_url, recipe_url, in_app_transaction_id
         FROM pending_transactions
-        WHERE transaction_date <= NOW() - INTERVAL 7 DAY;
+        WHERE transaction_date <= NOW() - INTERVAL 7 DAY
+        AND status != 'FINISHED';
         """
         cursor.execute(select_query)
         pending_transactions = cursor.fetchall()
@@ -66,16 +67,18 @@ def finish_pending_transactions():
             """
             cursor.executemany(insert_query, pending_transactions)
 
-            # 3. Remover os registros da tabela pending_transactions
-            delete_query = """
-            DELETE FROM pending_transactions
-            WHERE transaction_date <= NOW() - INTERVAL 7 DAY;
+            # 3. Atualizar os registros na tabela pending_transactions, alterando o status para 'FINISHED'
+            update_query = """
+            UPDATE pending_transactions
+            SET status = 'FINISHED'
+            WHERE transaction_date <= NOW() - INTERVAL 7 DAY
+            AND status != 'FINISHED';
             """
-            cursor.execute(delete_query)
+            cursor.execute(update_query)
 
             # Confirmar a transação
             connection.commit()
-            print(f"{cursor.rowcount} transações migradas com sucesso.")
+            print(f"{cursor.rowcount} transações migradas e atualizadas com sucesso.")
 
         else:
             print("Nenhuma transação pendente para migrar.")
