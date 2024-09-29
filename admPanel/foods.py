@@ -57,6 +57,7 @@ def adm_get_foods_v2():
 @adm_foods_blueprint.route('/adm/v1/delete_food/<int:food_id>', methods=['DELETE'])
 @jwt_required()
 def adm_delete_food(food_id):
+    identity = get_jwt_identity()
     try:
         sql_query = """
         DELETE FROM foods
@@ -70,6 +71,26 @@ def adm_delete_food(food_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        # Crie um dicionário apenas com os campos necessários
+        log_data = {
+            'food_id': f'{food_id}',
+            'changed_by': identity,  # Usando a variável identity para identificar quem fez a alteração
+            'log_type': "CREATE"  # Definindo o tipo de log como "CREATE"
+        }
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_message = ", ".join([f"{key}={value}" for key, value in log_data.items()])
+        print(f"{identity} criou um item as [{timestamp}]. Created fields: {log_message}")
+
+        # Construindo a query de inserção apenas com os campos necessários
+        sql_insert_log = """
+        INSERT INTO food_update_logs (
+            food_id, changed_by, log_type
+        ) VALUES (%(food_id)s, %(changed_by)s, %(log_type)s)
+        """
+
+        execute_query(sql_insert_log, log_data)
   
 @adm_foods_blueprint.route('/adm/v4/add_food', methods=['POST'])
 @jwt_required()
