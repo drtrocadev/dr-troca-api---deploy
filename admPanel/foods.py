@@ -76,7 +76,7 @@ def adm_delete_food(food_id):
         log_data = {
             'food_id': f'{food_id}',
             'changed_by': identity,  # Usando a variável identity para identificar quem fez a alteração
-            'log_type': "CREATE"  # Definindo o tipo de log como "CREATE"
+            'log_type': "DELETE"  # Definindo o tipo de log como "CREATE"
         }
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
