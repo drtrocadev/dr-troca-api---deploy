@@ -67,6 +67,14 @@ def process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to
 
     return process_foods_flat(foods_of_group), 200
 
+def remove_duplicates_by_food_name_pt(response):
+    unique_response = {}
+    for item in response:
+        food_name_pt = item["food_name"]["pt"]
+        if food_name_pt not in unique_response:
+            unique_response[food_name_pt] = item
+    return list(unique_response.values())
+
 @products_blueprint.route('/v1/get_exchanges', methods=['POST'])
 def get_exchanges():
     data = request.json
@@ -103,7 +111,7 @@ def get_exchanges_v2():
     
     try:
         response, status_code = process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to_convert)
-        return jsonify(response), status_code
+        return jsonify(remove_duplicates_by_food_name_pt(response)), status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -142,7 +150,7 @@ def get_exchanges_multiple():
         try:
             response, status_code = process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to_convert)
             if status_code == 200:
-                results[food_id] = response  # Adiciona o food_id como chave no dicionário
+                results[food_id] = remove_duplicates_by_food_name_pt(response)  # Adiciona o food_id como chave no dicionário
             else:
                 return jsonify(response), status_code
         except Exception as e:
