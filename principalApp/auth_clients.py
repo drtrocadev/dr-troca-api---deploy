@@ -410,7 +410,7 @@ def delete_user():
 @auth_clients_blueprint.route('/v1/request_password_reset', methods=['POST'])
 def request_password_reset():
     try:
-        email = request.json.get('email')
+        email = request.json.get('email')  # Email tratado normalmente
 
         # Verificar se o email existe na tabela users
         sql_query = "SELECT userID FROM users WHERE email = %s"
@@ -438,14 +438,15 @@ def request_password_reset():
 @auth_clients_blueprint.route('/v1/verify_reset_code', methods=['POST'])
 def verify_reset_code():
     try:
-        email = request.json.get('email')
+        email = request.json.get('email')  # Email tratado normalmente
         code = request.json.get('code')
 
         sql_query = "SELECT verification_code FROM users WHERE email = %s"
         params = (email,)
         result = execute_query_with_params(sql_query, params, fetch_all=True)
 
-        if result and result[0]['verification_code'] == code:
+        # Comparação do código de verificação de forma insensível a maiúsculas
+        if result and result[0]['verification_code'].lower() == code.lower():
             return jsonify({"message": "Código verificado com sucesso."})
         else:
             return jsonify({"message": "Código inválido."}), 400
@@ -455,7 +456,7 @@ def verify_reset_code():
 @auth_clients_blueprint.route('/v1/reset_password', methods=['POST'])
 def reset_password():
     try:
-        email = request.json.get('email')
+        email = request.json.get('email')  # Email tratado normalmente
         code = request.json.get('code')
         new_password = request.json.get('new_password')
 
@@ -463,7 +464,8 @@ def reset_password():
         params = (email,)
         result = execute_query_with_params(sql_query, params, fetch_all=True)
 
-        if result and result[0]['verification_code'] == code:
+        # Comparação do código de verificação de forma insensível a maiúsculas
+        if result and result[0]['verification_code'].lower() == code.lower():
             hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
             sql_query = "UPDATE users SET password = %s WHERE email = %s"
             params = (hashed_password, email)
