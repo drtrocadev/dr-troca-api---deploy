@@ -222,7 +222,6 @@ def adm_add_food_v4():
 
         execute_query(sql_insert_log, log_data)
 
-
 @adm_foods_blueprint.route('/adm/v2/edit_food', methods=['POST'])
 @jwt_required()
 def adm_edit_food_v2():
@@ -844,71 +843,3 @@ def adm_edit_food_v3():
             """
 
             execute_query(sql_insert_log, log_data)
-
-# Duplicação das funções auxiliares, se necessário, ou uso das existentes
-
-def find_category(category_name):
-    categories = {
-        'vegan': 2,
-        'vegetarian': 3
-    }
-    return categories.get(category_name)
-
-def find_allergen(allergen_name):
-    allergens = {
-        'gluten': 2,
-        'peanut': 3,
-        'eggs': 4,
-        'soy': 5,
-        'tropomyosin': 6,
-        'dairy': 7,
-        'phenylalanine': 8,
-        'lactose': 9
-    }
-    return allergens.get(allergen_name)
-
-def insert_into_food_category(cursor, food_id, category_id):
-    sql = "INSERT INTO food_category (food_id, category_id) VALUES (%s, %s)"
-    try:
-        cursor.execute(sql, (food_id, category_id))
-    except Exception as e:
-        raise Exception(f"Erro ao inserir na tabela food_category: {e}")
-
-def insert_into_food_allergen(cursor, food_id, allergen_id):
-    sql = "INSERT INTO food_allergen (food_id, allergen_id) VALUES (%s, %s)"
-    try:
-        cursor.execute(sql, (food_id, allergen_id))
-    except Exception as e:
-        raise Exception(f"Erro ao inserir na tabela food_allergen: {e}")
-
-def update_food_categories(food_id, category_ids):
-    if category_ids:
-        values_to_insert = [(food_id, category_id) for category_id in category_ids]
-        sql = "INSERT INTO food_category (food_id, category_id) VALUES (%s, %s)"
-        try:
-            execute_query(sql, values_to_insert, many=True)
-        except Exception as e:
-            print(f"Erro ao inserir na tabela food_category: {e}")
-
-def update_food_allergens(food_id, allergen_ids):
-    if allergen_ids:
-        values_to_insert = [(food_id, allergen_id) for allergen_id in allergen_ids]
-        sql = "INSERT INTO food_allergen (food_id, allergen_id) VALUES (%s, %s)"
-        try:
-            execute_query(sql, values_to_insert, many=True)
-        except Exception as e:
-            print(f"Erro ao inserir na tabela food_allergen: {e}")
-
-def delete_existing_categories(food_id):
-    sql = "DELETE FROM food_category WHERE food_id = %s"
-    try:
-        execute_query(sql, (food_id,))
-    except Exception as e:
-        print(f"Erro ao deletar categorias existentes para o alimento com ID {food_id}: {e}")
-
-def delete_existing_allergens(food_id):
-    sql = "DELETE FROM food_allergen WHERE food_id = %s"
-    try:
-        execute_query(sql, (food_id,))
-    except Exception as e:
-        print(f"Erro ao deletar alergênicos existentes para o alimento com ID {food_id}: {e}")
