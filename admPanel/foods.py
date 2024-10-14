@@ -589,9 +589,30 @@ def adm_get_foods_v3():
 
         result = execute_query_without_params(sql_query, fetch_all=True)
         
+        # Processar categorias e alergênicos
         for item in result:
             item['categories'] = item['categories'].split(', ') if item['categories'] else []
             item['allergens'] = item['allergens'].split(', ') if item['allergens'] else []
+
+        # Dicionário para rastrear o menor ID para cada food_name_pt
+        first_food_ids = {}
+        for item in result:
+            food_name_pt = item.get('food_name_pt')
+            current_id = item.get('id')
+            if food_name_pt:
+                if food_name_pt not in first_food_ids:
+                    first_food_ids[food_name_pt] = current_id
+                else:
+                    if current_id < first_food_ids[food_name_pt]:
+                        first_food_ids[food_name_pt] = current_id
+
+        # Adicionar o atributo 'is_first' a cada item
+        for item in result:
+            food_name_pt = item.get('food_name_pt')
+            if food_name_pt and item.get('id') == first_food_ids.get(food_name_pt):
+                item['is_first'] = True
+            else:
+                item['is_first'] = False
 
         return jsonify(result)
 
