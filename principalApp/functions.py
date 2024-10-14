@@ -101,7 +101,7 @@ nutrients = [
     'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc',
     'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
     'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6',
-    'vitamin_b9', 'vitamin_b12'
+    'vitamin_b9', 'vitamin_b12', 'caffeine', 'taurine'
 ]
 
 properties_to_update = [
@@ -110,7 +110,8 @@ properties_to_update = [
     'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc',
     'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
     'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6',
-    'vitamin_b9', 'vitamin_b12', 'calories', 'weight_in_grams'
+    'vitamin_b9', 'vitamin_b12', 'calories', 'weight_in_grams',
+    'caffeine', 'taurine'
 ]
 
 def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):
