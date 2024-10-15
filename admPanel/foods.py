@@ -612,25 +612,27 @@ def adm_edit_food_v3():
     try:
         data = request.json
 
+        # Certifica-se de que o ID do alimento está presente
         if 'id' not in data:
             return jsonify({"error": "Missing food ID"}), 400
 
+        # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
         if 'image_url' in data:
             if data['image_url'].startswith("http"):
                 data['image_url'] = data['image_url']
             else:
                 image_url = upload_image_and_get_url(data['image_url'])
                 data['image_url'] = image_url
-            updated_data['image_url'] = data['image_url']
+            updated_data['image_url'] = data['image_url']  # Armazena a atualização
 
+        # Campos que podem ser atualizados
         updatable_fields = [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es',
-            'portion_size_pt', 'group_id', 'image_url', 'weight_in_grams', 'calories', 'carbohydrates',
-            'proteins', 'alcohol', 'total_fats', 'saturated_fats', 'monounsaturated_fats',
-            'polyunsaturated_fats', 'trans_fats', 'fibers', 'calcium', 'sodium', 'magnesium', 'iron',
-            'zinc', 'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1',
-            'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'caffeine', 'taurine',
-            'featured'
+            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url',
+            'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats', 
+            'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 
+            'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 
+            'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 
+            'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'caffeine', 'featured', 'taurine'
         ]
 
         set_clause = ', '.join([f"{field} = %s" for field in updatable_fields if field in data])
@@ -640,24 +642,28 @@ def adm_edit_food_v3():
         if not params:
             return jsonify({"error": "No updatable fields provided"}), 400
 
-        params.append(data['id'])
+        params.append(data['id'])  # Adiciona o ID do produto ao final dos parâmetros para a cláusula WHERE
 
+        # Consulta SQL para atualizar o produto
         sql_update_food = f"UPDATE foods SET {set_clause} WHERE id = %s"
 
+        # Executa a atualização
         execute_query(sql_update_food, params)
 
         delete_existing_allergens(data['id'])
         delete_existing_categories(data['id'])
 
+        # Associa apenas com categorias existentes
         if 'categories' in data:
             category_ids = [find_category(category) for category in data['categories'] if find_category(category)]
-            if category_ids:
+            if category_ids:  # Só associa se existirem categorias válidas
                 update_food_categories(data['id'], category_ids)
             updated_data['categories'] = category_ids
 
+        # Associa apenas com alergênicos existentes
         if 'allergens' in data:
             allergen_ids = [find_allergen(allergen) for allergen in data['allergens'] if find_allergen(allergen)]
-            if allergen_ids:
+            if allergen_ids:  # Só associa se existirem alergênicos válidos
                 update_food_allergens(data['id'], allergen_ids)
             updated_data['allergens'] = allergen_ids
 
@@ -668,6 +674,7 @@ def adm_edit_food_v3():
 
     finally:
         if updated_data:
+            # Garante que o ID do alimento esteja incluído nos dados a serem logados
             updated_data['id'] = data.get('id')
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -675,29 +682,30 @@ def adm_edit_food_v3():
             print(f"{identity} editou um item as [{timestamp}]. Updated fields: {log_message}")
 
             log_data = {field: updated_data.get(field, None) for field in updatable_fields}
-            log_data['id'] = data.get('id')
+            log_data['id'] = data.get('id')  # Certifica-se de que o 'id' está presente
             log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
             log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
-            log_data['changed_by'] = identity
+            log_data['changed_by'] = identity  # Usando a variável identity para identificar quem fez a alteração
             log_data['log_type'] = "EDIT"
 
+            # Construindo a query de inserção atualizada
             sql_insert_log = """
                 INSERT INTO food_update_logs (
-                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
-                    group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
-                    saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
-                    magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
-                    vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured,
-                    categories, allergens, changed_by, log_type
+                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url,
+                    weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+                    saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats,
+                    fibers, calcium, sodium, magnesium, iron, zinc, potassium,
+                    vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
+                    vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens,
+                    changed_by, log_type, 'caffeine', 'featured', 'taurine'
                 ) VALUES (
-                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s,
-                    %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s, %(weight_in_grams)s,
-                    %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s, %(saturated_fats)s,
-                    %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s, %(fibers)s, %(calcium)s,
-                    %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s, %(vitamin_a)s, %(vitamin_c)s,
-                    %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s, %(vitamin_b3)s, %(vitamin_b6)s,
-                    %(vitamin_b9)s, %(vitamin_b12)s, %(caffeine)s, %(taurine)s, %(featured)s, %(categories)s,
-                    %(allergens)s, %(changed_by)s, %(log_type)s
+                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s,
+                    %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
+                    %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
+                    %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
+                    %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
+                    %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(categories)s, %(allergens)s,
+                    %(changed_by)s, %(log_type)s, %(caffeine)s, %(featured)s, %(taurine)s
                 )
             """
 
