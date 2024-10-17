@@ -559,7 +559,8 @@ def adm_get_foods_v3():
             f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc,
             f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e,
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6,
-            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
+            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured,
+            f.created_at, f.updated_at,
             f.weight_in_grams, f.image_url,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') AS categories,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR ', ') AS allergens
@@ -710,7 +711,6 @@ def adm_edit_food_v3():
             """
 
             execute_query(sql_insert_log, log_data)
-
 
 @adm_foods_blueprint.route('/adm/v5/add_food', methods=['POST'])
 @jwt_required()
