@@ -736,6 +736,7 @@ def adm_add_food_v5():
         missing_params = [param for param in expected_params if param not in data]
 
         if missing_params:
+            print(missing_params)
             return jsonify({
                 "error": "Missing parameters",
                 "missing_parameters": missing_params
@@ -798,6 +799,8 @@ def adm_add_food_v5():
     except Exception as e:
         if conn:
             conn.rollback()  # Desfaz todas as operações se ocorrer um err
+        if cursor:
+            cursor.close()
         print(e)
         return jsonify({"error": str(e)}), 500
     finally:
