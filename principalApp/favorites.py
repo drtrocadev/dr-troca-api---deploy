@@ -680,6 +680,25 @@ def get_meals():
         return jsonify(meals), 200
     except Exception as e: 
         return jsonify({'error': str(e)}), 400
+    
+@favorites_blueprint.route('/v3/get_meals', methods=['GET'])
+@jwt_required()
+def get_meals_v3():
+    try:
+        # Obter o ID do usuário a partir do token JWT
+        jwt_claims = get_jwt()
+
+        user_id = jwt_claims.get('user_id')
+
+        # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
+        query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 0"
+        
+        params = (user_id,)
+        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        
+        return jsonify(meals), 200
+    except Exception as e: 
+        return jsonify({'error': str(e)}), 400
 
 @favorites_blueprint.route('/v1/get_foods_from_favorite_meal', methods=['POST'])
 def get_meal_exchanges():
@@ -831,3 +850,23 @@ def delete_meal():
         return jsonify({"statusCode": "200", "message": "Meal deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@favorites_blueprint.route('/v2/get_original_meals', methods=['GET'])
+@jwt_required()
+def get_original_meals():
+    try:
+        # Obter o ID do usuário a partir do token JWT
+        jwt_claims = get_jwt()
+
+        user_id = jwt_claims.get('user_id')
+
+        # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
+        query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 1"
+        
+        params = (user_id,)
+        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        
+        return jsonify(meals), 200
+    except Exception as e: 
+        return jsonify({'error': str(e)}), 400
