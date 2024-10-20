@@ -315,3 +315,56 @@ def upload_invoice(invoice_base64, filename):
 
     # Retorna a URL da imagem após o upload bem-sucedido
     return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/invoices/{filename_with_suffix}"
+
+
+ftp_folder_thumbs = 'domains/drtroca.com.br/public_html/drtroca/thumbs/'
+
+def generate_and_upload_thumbnail(image_input):
+    """
+    Generates a thumbnail from the given image input (base64 string or URL),
+    uploads it to the FTP server, and returns the thumbnail URL.
+    """
+    try:
+        if image_input.startswith("http"):
+            # If the image_input is a URL, download the image first
+            import requests
+            response = requests.get(image_input)
+            response.raise_for_status()
+            image_data = response.content
+        else:
+            # If the image_input is a base64 string, decode it
+            image_base64 = re.sub(r'\s+', '', image_input)
+            padding_needed = len(image_base64) % 4
+            if padding_needed > 0:
+                image_base64 += '=' * (4 - padding_needed)
+            image_data = base64.b64decode(image_base64)
+
+        # Open the image using PIL
+        image = Image.open(io.BytesIO(image_data))
+
+        # Create a thumbnail (e.g., 128x128 pixels)
+        thumbnail_size = (128, 128)
+        image.thumbnail(thumbnail_size)
+
+        # Save the thumbnail to a bytes buffer in PNG format
+        thumbnail_stream = io.BytesIO()
+        image.save(thumbnail_stream, format='PNG')
+        thumbnail_stream.seek(0)
+
+        # Generate a unique filename for the thumbnail
+        thumbnail_filename = generate_filename() + "_thumb.png"
+
+        # Upload the thumbnail to FTP server
+        ftp = FTP(ftp_host)
+        ftp.login(user=ftp_username, passwd=ftp_password)
+        ftp.cwd(ftp_folder_thumbs)
+        ftp.storbinary('STOR ' + thumbnail_filename, thumbnail_stream)
+        ftp.quit()
+
+        # Return the URL of the uploaded thumbnail
+        return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/thumbs/{thumbnail_filename}"
+
+    except Exception as e:
+        # Handle exceptions (you might want to log this instead)
+        print(f"Error generating/uploading thumbnail: {e}")
+        raise e

@@ -8,6 +8,7 @@ from admPanel.functions import execute_query_without_params
 from admPanel.functions import execute_query_with_params
 from admPanel.functions import execute_query
 from admPanel.functions import upload_image_and_get_url
+from admPanel.functions import generate_and_upload_thumbnail
 from admPanel.functions import upload_category_cover_and_get_url
 
 adm_foods_blueprint = Blueprint('adm_foods_blueprint', __name__)
@@ -717,10 +718,11 @@ def adm_edit_food_v3():
 def adm_add_food_v5():
     identity = get_jwt_identity()
     conn = None
-    expected_params = {}
+    expected_params = []
     food_id = 0
     image_url = ""
-    conn = None
+    thumbnail_url = ""
+    
     try:
         data = request.json
         expected_params = [
@@ -738,36 +740,47 @@ def adm_add_food_v5():
                 "missing_parameters": missing_params
             }), 400
 
-        conn = db_connection_pool.get_connection()  # Substitua pela sua função real de conexão ao banco
-        conn.autocommit = False  # Desativa o commit automático
+        conn = db_connection_pool.get_connection()  # Replace with your actual DB connection method
+        conn.autocommit = False  # Disable auto-commit
         cursor = conn.cursor()
 
-        # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
+        # Process the main image URL
         if data['image_url'].startswith("http"):
-            data['image_url'] = data['image_url']
+            # If image_url is already a URL, use it directly
             image_url = data['image_url']
         else:
+            # If image_url is base64, upload it and get the URL
             image_url = upload_image_and_get_url(data['image_url'])
-            data['image_url'] = image_url
+
+        # Generate and upload the thumbnail
+        thumbnail_url = generate_and_upload_thumbnail(data['image_url'])
 
         sql_insert_food = """
-        INSERT INTO foods (food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats, 
-        saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium, magnesium, 
-        iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2, vitamin_b3, 
-        vitamin_b6, vitamin_b9, vitamin_b12, caffeine, featured, taurine) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO foods (
+            food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, 
+            group_id, image_url, thumbnail_url, weight_in_grams, calories, carbohydrates, proteins, 
+            alcohol, total_fats, saturated_fats, monounsaturated_fats, polyunsaturated_fats, 
+            trans_fats, fibers, calcium, sodium, magnesium, iron, zinc, potassium, vitamin_a, 
+            vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2, vitamin_b3, vitamin_b6, 
+            vitamin_b9, vitamin_b12, caffeine, featured, taurine
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+            %s, %s, %s, %s, %s, %s
+        )
         """
 
-        # Parâmetros para a inserção do alimento
+        # Parameters for inserting the food item, including thumbnail_url
         params = (
             data['food_name_en'], data['food_name_pt'], data['food_name_es'],
             data['portion_size_en'], data['portion_size_es'], data['portion_size_pt'],
-            data['group_id'], image_url, data['weight_in_grams'],
-            data['calories'], data['carbohydrates'], data['proteins'], data ['alcohol'],
+            data['group_id'], image_url, thumbnail_url, data['weight_in_grams'],
+            data['calories'], data['carbohydrates'], data['proteins'], data['alcohol'],
             data['total_fats'], data['saturated_fats'], data['monounsaturated_fats'], 
-            data['polyunsaturated_fats'], data['trans_fats'], data['fibers'], data['calcium'], data['sodium'], 
-            data['magnesium'], data['iron'], data['zinc'], data['potassium'], data['vitamin_a'], data['vitamin_c'], 
-            data['vitamin_d'], data['vitamin_e'], data['vitamin_b1'], data['vitamin_b2'], data['vitamin_b3'], 
+            data['polyunsaturated_fats'], data['trans_fats'], data['fibers'], data['calcium'], 
+            data['sodium'], data['magnesium'], data['iron'], data['zinc'], data['potassium'], 
+            data['vitamin_a'], data['vitamin_c'], data['vitamin_d'], data['vitamin_e'], 
+            data['vitamin_b1'], data['vitamin_b2'], data['vitamin_b3'], 
             data['vitamin_b6'], data['vitamin_b9'], data['vitamin_b12'],
             data['caffeine'], data['featured'], data['taurine']
         )
@@ -775,12 +788,14 @@ def adm_add_food_v5():
         cursor.execute(sql_insert_food, params)
         food_id = cursor.lastrowid
 
+        # Handle categories if provided
         if 'categories' in data:
             for category in data['categories']:
                 category_id = find_category(category)
                 if category_id:
                     insert_into_food_category(cursor, food_id, category_id)
 
+        # Handle allergens if provided
         if 'allergens' in data:
             for allergen in data['allergens']:
                 allergen_id = find_allergen(allergen)

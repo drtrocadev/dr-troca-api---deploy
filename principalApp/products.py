@@ -32,7 +32,7 @@ def get_foods():
             f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
             f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.weight_in_grams, f.image_url, f.thumb_url,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
