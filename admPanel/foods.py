@@ -718,6 +718,7 @@ def adm_edit_food_v3():
 def adm_add_food_v5():
     identity = get_jwt_identity()
     conn = None
+    cursor = None
     expected_params = {}
     food_id = 0
     image_url = ""
