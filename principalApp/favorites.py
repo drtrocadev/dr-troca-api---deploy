@@ -322,6 +322,7 @@ def add_favorite_exchange_v2():
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
         user_id = jwt_claims.get('user_id')
+        print(user_id)
 
         try:
             data = request.get_json(force=True)  # Force parsing the JSON payload
@@ -416,7 +417,7 @@ def list_favorite_exchanges_v2():
             ef.change_type_id,
             ef.grams_or_calories,
             ef.value_to_convert,
-            f.id as food_id,
+            f.id,
             f.food_name_en,
             f.food_name_pt,
             f.food_name_es,
