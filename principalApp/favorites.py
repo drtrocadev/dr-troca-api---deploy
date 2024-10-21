@@ -560,7 +560,7 @@ def save_meal_v1():
 
         # Consultar o meal recém-criado para retornar no formato especificado
         meal_select_query = """
-            SELECT meal_id, meal_name, change_type_id, created_at 
+            SELECT meal_id, meal_name, change_type_id, created_at, is_original
             FROM meals 
             WHERE meal_id = %s
         """
@@ -570,6 +570,8 @@ def save_meal_v1():
         if not meal:
             connection.rollback()
             return jsonify({'status': 'error', 'message': 'Failed to retrieve meal'}), 400
+        
+        meal['is_original'] = bool(meal['is_original'])
 
         connection.commit()
         return jsonify(meal), 201
@@ -583,6 +585,7 @@ def save_meal_v1():
             cursor.close()
         if connection:
             connection.close()
+            
 @favorites_blueprint.route('/v1/delete_meal', methods=['DELETE'])
 @jwt_required()
 def delete_meal_v1():
