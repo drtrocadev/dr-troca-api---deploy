@@ -286,7 +286,7 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
             f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
             f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.weight_in_grams, f.image_url, f.thumb_url,  -- Verifique se esse campo está correto na base de dados
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
@@ -301,6 +301,10 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
 
         # Executa a consulta
         all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
+
+        # Adicione um log aqui para inspecionar o resultado
+        print(all_foods_of_group)  # Ou utilize uma função de logging
+
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
         dia_a_dia_foods = find_daily_similar_foods(
             all_foods_of_group=all_foods_of_group,
@@ -312,6 +316,7 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
         return dia_a_dia_foods
     except Exception as e:
         return jsonify({"error": str(e)}), 500 
+
 
 def hangry(food_id, group_id, grams_or_calories, value_to_convert):
     try:
@@ -327,7 +332,7 @@ def hangry(food_id, group_id, grams_or_calories, value_to_convert):
             f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
             f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.weight_in_grams, f.image_url, f.thumb_url,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
@@ -368,7 +373,7 @@ def not_hangry(food_id, group_id, grams_or_calories, value_to_convert):
             f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
             f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.weight_in_grams, f.image_url, f.thumb_url,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
@@ -414,7 +419,7 @@ def emergency(food_id, grams_or_calories, value_to_convert):
                 f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
                 f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
                 f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-                f.weight_in_grams, f.image_url,
+                f.weight_in_grams, f.image_url, f.thumb_url,
                 GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
                 GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
             FROM foods f

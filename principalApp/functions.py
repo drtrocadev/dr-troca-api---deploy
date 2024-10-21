@@ -18,10 +18,10 @@ def process_foods_flat(result):
             "es": item['portion_size_es'] or "",
             "pt": item['portion_size_pt'] or ""
         }
-        
+
         # Garante que 'featured' seja um booleano
         featured = bool(item.get('featured', False))
-        
+
         # Prepara o item com as informações do alimento, excluindo os campos não necessários para este contexto
         food_item = {key: item[key] for key in item if key not in ['group_name_en', 'group_name_pt', 'group_name_es',
                                                                     'group_description_en', 'group_description_pt', 'group_description_es',
@@ -32,10 +32,16 @@ def process_foods_flat(result):
         food_item['allergens'] = item['allergens'].split('; ') if item['allergens'] else []
         food_item['categories'] = item['categories'].split('; ') if item['categories'] else []
         food_item['featured'] = featured  # Adiciona o campo 'featured' como booleano
-        
+
+        # Garante que os campos 'taurine', 'caffeine' e 'thumb_url' estejam presentes, mesmo se estiverem ausentes
+        food_item['taurine'] = item.get('taurine', "")  # Garantindo que 'taurine' exista
+        food_item['caffeine'] = item.get('caffeine', "")  # Garantindo que 'caffeine' exista
+        food_item['thumb_url'] = item.get('thumb_url', "")  # Garantindo que 'thumb_url' exista
+
         foods.append(food_item)
-    
+
     return foods
+
 def process_food_items(result):
     # Inicializa um dicionário para agrupar os alimentos por group_id
     foods_by_group = {}
@@ -87,6 +93,9 @@ def process_food_items(result):
         food_item['allergens'] = item['allergens'].split('; ') if item['allergens'] else []
         food_item['categories'] = item['categories'].split('; ') if item['categories'] else []
         food_item['featured'] = featured  # Adiciona o campo 'featured' como booleano
+        food_item['taurine'] = item.get('taurine', "")
+        food_item['caffeine'] = item.get('caffeine', "")
+        food_item['thumb_url'] = item.get('thumb_url', "")
 
         foods_by_group[group_id]["foods"].append(food_item)
 
