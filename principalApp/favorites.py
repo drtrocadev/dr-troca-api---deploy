@@ -507,13 +507,18 @@ def save_meal_v1():
     meal_name = data.get('meal_name')
     jwt_claims = get_jwt()
     user_id = jwt_claims.get('user_id')
+    
+    # Convertendo change_type_id para string, permitindo o valor 0
     change_type_id = data.get('change_type_id')
+    if change_type_id is not None:
+        change_type_id = str(change_type_id)
+
     is_original = data.get('is_original', False)
     meal_exchanges_favorites = data.get('meal_exchanges_favorites', [])
 
     print(data)
 
-    if not meal_name or not change_type_id:
+    if not meal_name or change_type_id is None:
         print("Meal name and change type are required")
         return jsonify({'status': 'error', 'message': 'Meal name and change type are required'}), 400
 
@@ -578,7 +583,6 @@ def save_meal_v1():
             cursor.close()
         if connection:
             connection.close()
-
 @favorites_blueprint.route('/v1/delete_meal', methods=['DELETE'])
 @jwt_required()
 def delete_meal_v1():
