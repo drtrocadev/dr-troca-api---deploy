@@ -250,6 +250,7 @@ def get_exchanges_multiple_v3():
 # Funções de Processamento
 
 def process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to_convert):
+    print(food_id)
     if change_type_id == 0:
         foods_of_group = daily_changes(food_id=food_id, group_id=group_id, grams_or_calories=grams_or_calories, value_to_convert=value_to_convert)
     elif change_type_id == 2:
@@ -302,9 +303,6 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
 
         # Executa a consulta
         all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
-
-        # Adicione um log aqui para inspecionar o resultado
-        print(all_foods_of_group)  # Ou utilize uma função de logging
 
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
         dia_a_dia_foods = find_daily_similar_foods(
