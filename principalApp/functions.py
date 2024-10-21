@@ -1,6 +1,7 @@
 import json
 import requests
 
+
 multiplier_lower = 0.75
 multiplier_upper = 1.25
 
@@ -100,7 +101,9 @@ def process_food_items(result):
         foods_by_group[group_id]["foods"].append(food_item)
 
     return foods_by_group
+
 def get_food_by_id(food_id, foods):
+    print(food_id)
     # Percorre todos os alimentos na lista
     for food in foods:
         # Verifica se o id do alimento atual corresponde ao food_id fornecido
