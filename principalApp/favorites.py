@@ -511,10 +511,14 @@ def save_meal_v1():
     is_original = data.get('is_original', False)
     meal_exchanges_favorites = data.get('meal_exchanges_favorites', [])
 
+    print(data)
+
     if not meal_name or not change_type_id:
+        print("Meal name and change type are required")
         return jsonify({'status': 'error', 'message': 'Meal name and change type are required'}), 400
 
     if not meal_exchanges_favorites:
+        print("No meal exchanges provided")
         return jsonify({'status': 'error', 'message': 'No meal exchanges provided'}), 400
 
     try:
