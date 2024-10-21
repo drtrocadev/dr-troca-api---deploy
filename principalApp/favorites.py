@@ -633,13 +633,17 @@ def get_meals_v3():
 
         # Consulta SQL para buscar as refeições não originais do usuário
         query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 0"
-        
         params = (user_id,)
         meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
+
+        # Converter 'is_original' para booleano em cada refeição
+        for meal in meals:
+            meal['is_original'] = bool(meal['is_original'])
+
         return jsonify(meals), 200
     except Exception as e: 
         return jsonify({'error': str(e)}), 400
+
 
 @favorites_blueprint.route('/v2/get_original_meals', methods=['GET'])
 @jwt_required()
@@ -651,10 +655,13 @@ def get_original_meals_v2():
 
         # Consulta SQL para buscar as refeições originais do usuário
         query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 1"
-        
         params = (user_id,)
         meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
+
+        # Converter 'is_original' para booleano em cada refeição
+        for meal in meals:
+            meal['is_original'] = bool(meal['is_original'])
+
         return jsonify(meals), 200
     except Exception as e: 
         return jsonify({'error': str(e)}), 400
