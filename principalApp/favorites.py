@@ -760,7 +760,11 @@ def save_meal():
     jwt_claims = get_jwt()
     user_id = jwt_claims.get('user_id')
     change_type_id = data.get('change_type_id')
+    is_original = data.get('is_original', False)
     meal_exchanges_favorites = data.get('meal_exchanges_favorites', [])
+
+    if not meal_name or not change_type_id:
+        return jsonify({'status': 'error', 'message': 'Meal name and change type are required'}), 400
 
     if not meal_exchanges_favorites:
         return jsonify({'status': 'error', 'message': 'No meal exchanges provided'}), 400
@@ -772,10 +776,10 @@ def save_meal():
 
         # Inserir o meal e obter o meal_id
         meal_insert_query = """
-            INSERT INTO meals (meal_name, user_id, change_type_id) 
-            VALUES (%s, %s, %s)
+            INSERT INTO meals (meal_name, user_id, change_type_id, is_original) 
+            VALUES (%s, %s, %s, %s)
         """
-        cursor.execute(meal_insert_query, (meal_name, user_id, change_type_id))
+        cursor.execute(meal_insert_query, (meal_name, user_id, change_type_id, is_original))
         meal_id = cursor.lastrowid
 
         if not meal_id:
@@ -791,10 +795,10 @@ def save_meal():
         for exchange in meal_exchanges_favorites:
             cursor.execute(meal_exchange_insert_query, (
                 meal_id, 
-                exchange['food_id'], 
-                exchange['group_id'], 
-                exchange['grams_or_calories'], 
-                exchange['value_to_convert']
+                exchange.get('food_id'), 
+                exchange.get('group_id'), 
+                exchange.get('grams_or_calories'), 
+                exchange.get('value_to_convert')
             ))
 
         # Consultar o meal recém-criado para retornar no formato especificado
@@ -815,11 +819,14 @@ def save_meal():
 
     except Exception as e:
         connection.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 400
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 400
 
     finally:
-        cursor.close()
-        connection.close()
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 
 @favorites_blueprint.route('/v1/delete_meal', methods=['DELETE'])
 @jwt_required()
