@@ -1,38 +1,73 @@
 from flask import Blueprint, request, jsonify
 import threading
-from admPanel.functions import execute_query_without_params
-from admPanel.functions import execute_query_with_params
-from admPanel.functions import execute_insert_query_with_params
+from admPanel.functions import execute_query_without_params, execute_query_with_params, execute_insert_query_with_params
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from principalApp.auth_clients import verify_password_change_timestamp
-from principalApp.products import process_foods_flat
-
-from flask_jwt_extended import jwt_required, get_jwt
-import mysql.connector
 from admPanel.auth import db_connection_pool
+import mysql.connector
 
 favorites_blueprint = Blueprint('favorites_blueprint', __name__)
 
+# Função de processamento dinâmica
+def process_food_item_dynamic(result):
+    if not isinstance(result, dict):
+        raise ValueError("Expected a dictionary for processing food data")
+
+    # Inicializa o food_item com todos os campos
+    food_item = result.copy()
+
+    # Defina os prefixos dos campos que precisam ser aninhados
+    language_fields = {
+        'food_name': ['food_name_en', 'food_name_pt', 'food_name_es'],
+        'portion_size': ['portion_size_en', 'portion_size_pt', 'portion_size_es']
+    }
+
+    for key, fields in language_fields.items():
+        nested_dict = {}
+        for field in fields:
+            lang = field.split('_')[-1]  # Ex: 'en' de 'food_name_en'
+            nested_dict[lang] = food_item.get(field, '')
+            # Remove o campo original
+            food_item.pop(field, None)
+        food_item[key] = nested_dict
+
+    # Converter 'featured' para booleano
+    food_item['featured'] = bool(food_item.get('featured', False))
+
+    # Processa listas de strings
+    food_item['allergens'] = food_item.get('allergens', "").split('; ') if food_item.get('allergens') else []
+    food_item['categories'] = food_item.get('categories', "").split('; ') if food_item.get('categories') else []
+
+    return food_item
+
+# Classes auxiliares
+class ThreadResult:
+    def __init__(self):
+        self.result = None
+        self.exception = None
+
+# Rotas para Favorites
+
 @favorites_blueprint.route('/v1/get_favorite_foods', methods=['GET'])
 @jwt_required()
-def get_favorites():
+def get_favorite_foods_v1():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-
         user_id = jwt_claims.get('user_id')
 
         # Consulta SQL para buscar os alimentos favoritos do usuário
         query = """
         SELECT 
-            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-            f.vitamin_b9, f.vitamin_b12, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, 
+            f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, 
+            f.saturated_fats, f.monounsaturated_fats, f.polyunsaturated_fats, 
+            f.trans_fats, f.fibers, f.calcium, f.sodium, f.magnesium, 
+            f.iron, f.zinc, f.potassium, f.vitamin_a, f.vitamin_c, 
+            f.vitamin_d, f.vitamin_e, f.vitamin_b1, f.vitamin_b2, 
+            f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
+            f.created_at, f.updated_at, f.weight_in_grams, 
+            f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM favorites fav
@@ -47,53 +82,17 @@ def get_favorites():
 
         params = (user_id,)
         favorite_foods = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        return_foods = process_foods_flat(favorite_foods)
 
-        return jsonify(return_foods), 200
+        # Processar cada alimento individualmente de forma dinâmica
+        processed_foods = [process_food_item_dynamic(food) for food in favorite_foods]
+
+        return jsonify(processed_foods), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-def process_foods_flat_add_favorite(result):
-    if not isinstance(result, dict):
-        raise ValueError("Expected a dictionary for processing food data")
-
-    foods = []
-
-    # Transforma food_name e portion_size em dicionários
-    food_name = {
-            "en": result['food_name_en'],
-            "pt": result['food_name_pt'],
-            "es": result['food_name_es']
-        }
-    portion_size = {
-        "en": result['portion_size_en'] or "",
-        "es": result['portion_size_es'] or "",
-        "pt": result['portion_size_pt'] or ""
-    }
-    # Prepara o item com as informações do alimento, excluindo os campos não necessários para este contexto
-    food_item = {key: result[key] for key in result if key not in [
-        'group_name_en', 'group_name_pt', 'group_name_es',
-        'group_description_en', 'group_description_pt', 'group_description_es',
-        'group_image_url', 'food_name_en', 'food_name_pt', 'food_name_es',
-        'portion_size_en', 'portion_size_es', 'portion_size_pt']}
-    
-    food_item['food_name'] = food_name
-    food_item['portion_size'] = portion_size
-    food_item['allergens'] = result.get('allergens', "").split('; ') if result.get('allergens') else []
-    food_item['categories'] = result.get('categories', "").split('; ') if result.get('categories') else []
-
-    foods.append(food_item)
-
-    return foods
-
-class ThreadResult:
-    def __init__(self):
-        self.result = None
-        self.exception = None
 
 @favorites_blueprint.route('/v1/add_favorite_food', methods=['POST'])
 @jwt_required()
-def add_favorite_food():
+def add_favorite_food_v1():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
@@ -134,14 +133,16 @@ def add_favorite_food():
             try:
                 food_query = """
                     SELECT 
-                        f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-                        f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-                        f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-                        f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-                        f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-                        f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-                        f.vitamin_b9, f.vitamin_b12, f.created_at, f.updated_at,
-                        f.weight_in_grams, f.image_url,
+                        f.id, f.food_name_en, f.food_name_pt, f.food_name_es, 
+                        f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+                        f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, 
+                        f.saturated_fats, f.monounsaturated_fats, f.polyunsaturated_fats, 
+                        f.trans_fats, f.fibers, f.calcium, f.sodium, f.magnesium, 
+                        f.iron, f.zinc, f.potassium, f.vitamin_a, f.vitamin_c, 
+                        f.vitamin_d, f.vitamin_e, f.vitamin_b1, f.vitamin_b2, 
+                        f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
+                        f.created_at, f.updated_at, f.weight_in_grams, 
+                        f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
                         GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
                         GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
                     FROM foods f
@@ -173,12 +174,13 @@ def add_favorite_food():
 
         food_data = fetch_result.result
 
-        # Processar os dados do alimento
-        processed_foods = process_foods_flat_add_favorite(food_data)
-        if not processed_foods:
+        if not food_data:
             return jsonify({"error": "No food data found"}), 404
 
-        return jsonify(processed_foods[0]), 201
+        # Processar os dados do alimento de forma dinâmica
+        processed_food = process_food_item_dynamic(food_data)
+
+        return jsonify(processed_food), 201
 
     except Exception as e:
         print("Exception occurred:", str(e))
@@ -186,11 +188,10 @@ def add_favorite_food():
 
 @favorites_blueprint.route('/v1/remove_favorite_food', methods=['DELETE'])
 @jwt_required()
-def remove_favorite():
+def remove_favorite_food_v1():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-
         user_id = jwt_claims.get('user_id')
 
         # Obter o food_id do corpo da requisição
@@ -209,85 +210,12 @@ def remove_favorite():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@favorites_blueprint.route('/v1/add_favorite_exchange', methods=['POST'])
+@favorites_blueprint.route('/v1/get_favorite_exchanges', methods=['GET'])
 @jwt_required()
-def add_exchange():
-    try:
-        # Log the request headers and body
-        print("Request Headers:", request.headers)
-        print("Request Body:", request.get_data(as_text=True))
-
-        # Obter o ID do usuário a partir do token JWT
-        jwt_claims = get_jwt()
-        user_id = jwt_claims.get('user_id')
-
-        try:
-            data = request.get_json(force=True)  # Force parsing the JSON payload
-        except Exception as e:
-            print("JSON parsing error:", str(e))
-            return jsonify({"statusCode": "400", "message": "Invalid JSON format"}), 400
-
-        food_id = data.get('food_id')
-        group_id = data.get('group_id')
-
-        # Combined query to check existence of food and group
-        check_query = """
-            SELECT 
-                (SELECT COUNT(*) FROM foods WHERE id = %s) AS food_exists, 
-                (SELECT COUNT(*) FROM groups WHERE id = %s) AS group_exists
-        """
-        check_params = (food_id, group_id)
-        
-        result = execute_query_with_params(check_query, check_params)
-        
-        if result['food_exists'] == 0:
-            return jsonify({'error': 'Food item not found'}), 404
-        if result['group_exists'] == 0:
-            return jsonify({'error': 'Group not found'}), 404
-
-        # Insert new exchange if checks pass
-        insert_query = """
-            INSERT INTO exchanges_favorite (user_id, food_id, group_id, change_type_id, grams_or_calories, value_to_convert)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        insert_params = (user_id, food_id, group_id, data['change_type_id'], data['grams_or_calories'], data['value_to_convert'])
-        execute_query_with_params(insert_query, insert_params, should_commit=True)
-
-        return jsonify({'message': 'Exchange added successfully'}), 201
-    except Exception as e:
-        print("Exception occurred:", str(e))
-        return jsonify({'error': str(e)}), 400
-
-@favorites_blueprint.route('/v1/remove_favorite_exchange', methods=['DELETE'])
-@jwt_required()
-def remove_exchange():
-
-    # Obter o ID do usuário a partir do token JWT
-    jwt_claims = get_jwt()
-
-    user_id = jwt_claims.get('user_id')
-    
-    # Obter o food_id do corpo da requisição
-    data = request.get_json()
-    food_id = data.get('food_id')
-    if not food_id:
-        return jsonify({"error": "Missing food_id in request body"}), 400
-
-    sql_query = "DELETE FROM exchanges_favorite WHERE food_id = %s AND user_id = %s"
-    params = (food_id, user_id)
-    try:
-        execute_query_with_params(sql_query, params)
-        return jsonify({'message': 'Exchange removed successfully'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
-@favorites_blueprint.route('/v1/get_favorite_exchages', methods=['GET'])
-@jwt_required()
-def list_favorite_xchanges():
+def list_favorite_exchanges_v1():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-
         user_id = jwt_claims.get('user_id')
 
         # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
@@ -338,6 +266,10 @@ def list_favorite_xchanges():
             f.updated_at,
             f.weight_in_grams,
             f.image_url,
+            f.thumb_url,
+            f.caffeine,
+            f.taurine,
+            f.featured,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM exchanges_favorite ef
@@ -349,91 +281,39 @@ def list_favorite_xchanges():
         WHERE ef.user_id = %s
         GROUP BY ef.id, f.id
         """
-        
+
         params = (user_id,)
-        favorite_foods = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
-        # Processar os resultados usando a função process_foods_flat
-        result = process_foods_flat_favorite(favorite_foods)
-        
-        return jsonify(result), 200
+        favorite_exchanges = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+
+        # Processar os resultados usando a função process_foods_flat_favorite
+        processed_exchanges = []
+        for exchange in favorite_exchanges:
+            # Processar cada alimento de forma dinâmica
+            food_info = process_food_item_dynamic(exchange)
+
+            # Preparar o item com as informações da troca favorita
+            favorite_item = {
+                'id': exchange.get('id'),
+                'user_id': exchange.get('user_id'),
+                'food_id': exchange.get('food_id'),
+                'group_id': exchange.get('group_id'),
+                'change_type_id': exchange.get('change_type_id'),
+                'grams_or_calories': exchange.get('grams_or_calories'),
+                'value_to_convert': exchange.get('value_to_convert'),
+                'food_info': food_info
+            }
+
+            processed_exchanges.append(favorite_item)
+
+        return jsonify(processed_exchanges), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-def process_foods_flat_favorite(result):
-    foods = []
-    for item in result:
-        # Transforma food_name e portion_size em dicionários
-        food_name = {
-            "en": item['food_name_en'],
-            "pt": item['food_name_pt'],
-            "es": item['food_name_es']
-        }
-        portion_size = {
-            "en": item['portion_size_en'] or "",
-            "es": item['portion_size_es'] or "",
-            "pt": item['portion_size_pt'] or ""
-        }
-        
-        # Prepara o item com as informações do alimento, excluindo os campos não necessários para este contexto
-        food_info = {
-            'food_id': item['food_id'],
-            'food_name': food_name,
-            'portion_size': portion_size,
-            'group_id': item['food_group_id'],
-            'calories': item['calories'],
-            'carbohydrates': item['carbohydrates'],
-            'proteins': item['proteins'],
-            'alcohol': item['alcohol'],
-            'total_fats': item['total_fats'],
-            'saturated_fats': item['saturated_fats'],
-            'monounsaturated_fats': item['monounsaturated_fats'],
-            'polyunsaturated_fats': item['polyunsaturated_fats'],
-            'trans_fats': item['trans_fats'],
-            'fibers': item['fibers'],
-            'calcium': item['calcium'],
-            'sodium': item['sodium'],
-            'magnesium': item['magnesium'],
-            'iron': item['iron'],
-            'zinc': item['zinc'],
-            'potassium': item['potassium'],
-            'vitamin_a': item['vitamin_a'],
-            'vitamin_c': item['vitamin_c'],
-            'vitamin_d': item['vitamin_d'],
-            'vitamin_e': item['vitamin_e'],
-            'vitamin_b1': item['vitamin_b1'],
-            'vitamin_b2': item['vitamin_b2'],
-            'vitamin_b3': item['vitamin_b3'],
-            'vitamin_b6': item['vitamin_b6'],
-            'vitamin_b9': item['vitamin_b9'],
-            'vitamin_b12': item['vitamin_b12'],
-            'created_at': item['created_at'],
-            'updated_at': item['updated_at'],
-            'weight_in_grams': item['weight_in_grams'],
-            'image_url': item['image_url'],
-            'allergens': item['allergens'].split('; ') if item['allergens'] else [],
-            'categories': item['categories'].split('; ') if item['categories'] else []
-        }
-        
-        # Prepara o item com as informações da troca favorita
-        favorite_item = {
-            'id': item['id'],
-            'user_id': item['user_id'],
-            'food_id': item['food_id'],
-            'group_id': item['group_id'],
-            'change_type_id': item['change_type_id'],
-            'grams_or_calories': item['grams_or_calories'],
-            'value_to_convert': item['value_to_convert'],
-            'food_info': food_info
-        }
-        
-        foods.append(favorite_item)
-    
-    return foods
+# Rotas para Exchanges (v2)
 
 @favorites_blueprint.route('/v2/add_favorite_exchange', methods=['POST'])
 @jwt_required()
-def add_exchange_v2():
+def add_favorite_exchange_v2():
     try:
         # Log the request headers and body
         print("Request Headers:", request.headers)
@@ -448,14 +328,13 @@ def add_exchange_v2():
         except Exception as e:
             print("JSON parsing error:", str(e))
             return jsonify({"statusCode": "400", "message": "Invalid JSON format"}), 400
-        
+
         food_info = data.get('food_info')
         if food_info:
             food_id = food_info.get('id')
             group_id = food_info.get('group_id')
         else:
-            food_id = ""
-            group_id = ""
+            return jsonify({"statusCode": "400", "message": "food_info is required"}), 400
 
         # Combined query to check existence of food and group
         check_query = """
@@ -464,9 +343,9 @@ def add_exchange_v2():
                 (SELECT COUNT(*) FROM groups WHERE id = %s) AS group_exists
         """
         check_params = (food_id, group_id)
-        
+
         result = execute_query_with_params(check_query, check_params, fetch_all=False, should_commit=False)
-        
+
         if result['food_exists'] == 0:
             return jsonify({'error': 'Food item not found'}), 404
         if result['group_exists'] == 0:
@@ -477,12 +356,19 @@ def add_exchange_v2():
             INSERT INTO exchanges_favorite (user_id, food_id, group_id, change_type_id, grams_or_calories, value_to_convert)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
-        insert_params = (user_id, food_id, group_id, data['change_type_id'], data['grams_or_calories'], data['value_to_convert'])
-        
+        insert_params = (
+            user_id,
+            food_id,
+            group_id,
+            data['change_type_id'],
+            data['grams_or_calories'],
+            data['value_to_convert']
+        )
+
         # Execute the insert query and get the lastrowid
         lastrowid = execute_insert_query_with_params(insert_query, insert_params)
 
-        # Add the new id to the response data
+        # Adicionar o novo id aos dados de resposta
         data['id'] = lastrowid
 
         return jsonify(data), 201
@@ -492,34 +378,32 @@ def add_exchange_v2():
 
 @favorites_blueprint.route('/v2/remove_favorite_exchange', methods=['DELETE'])
 @jwt_required()
-def remove_exchange_v2():
-
-    # Obter o ID do usuário a partir do token JWT
-    jwt_claims = get_jwt()
-
-    user_id = jwt_claims.get('user_id')
-    
-    # Obter o food_id do corpo da requisição
-    data = request.get_json()
-    exchange_id = data.get('exchange_id')
-    if not exchange_id:
-        return jsonify({"error": "Missing exchange_id in request body"}), 400
-
-    sql_query = "DELETE FROM exchanges_favorite WHERE id = %s AND user_id = %s"
-    params = (exchange_id, user_id)
+def remove_favorite_exchange_v2():
     try:
-        execute_query_with_params(sql_query, params)
+        # Obter o ID do usuário a partir do token JWT
+        jwt_claims = get_jwt()
+        user_id = jwt_claims.get('user_id')
+
+        # Obter o exchange_id do corpo da requisição
+        data = request.get_json()
+        exchange_id = data.get('exchange_id')
+        if not exchange_id:
+            return jsonify({"error": "Missing exchange_id in request body"}), 400
+
+        sql_query = "DELETE FROM exchanges_favorite WHERE id = %s AND user_id = %s"
+        params = (exchange_id, user_id)
+        execute_query_with_params(sql_query, params, should_commit=True)
+
         return jsonify({'message': 'Exchange removed successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 @favorites_blueprint.route('/v2/get_favorite_exchanges', methods=['GET'])
 @jwt_required()
-def list_exchanges_v2():
+def list_favorite_exchanges_v2():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-
         user_id = jwt_claims.get('user_id')
 
         # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
@@ -570,6 +454,10 @@ def list_exchanges_v2():
             f.updated_at,
             f.weight_in_grams,
             f.image_url,
+            f.thumb_url,
+            f.caffeine,
+            f.taurine,
+            f.featured,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM exchanges_favorite ef
@@ -581,180 +469,39 @@ def list_exchanges_v2():
         WHERE ef.user_id = %s
         GROUP BY ef.id, f.id
         """
-        
+
         params = (user_id,)
-        favorite_foods = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
-        # Processar os resultados usando a função process_foods_flat
-        result = process_foods_flat_favorite_v2(favorite_foods)
-        
-        return jsonify(result), 200
+        favorite_exchanges = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+
+        # Processar os resultados usando a função process_food_item_dynamic
+        processed_exchanges = []
+        for exchange in favorite_exchanges:
+            # Processar cada alimento de forma dinâmica
+            food_info = process_food_item_dynamic(exchange)
+
+            # Preparar o item com as informações da troca favorita
+            favorite_item = {
+                'id': exchange.get('id'),
+                'user_id': exchange.get('user_id'),
+                'food_id': exchange.get('food_id'),
+                'group_id': exchange.get('group_id'),
+                'change_type_id': exchange.get('change_type_id'),
+                'grams_or_calories': exchange.get('grams_or_calories'),
+                'value_to_convert': exchange.get('value_to_convert'),
+                'food_info': food_info
+            }
+
+            processed_exchanges.append(favorite_item)
+
+        return jsonify(processed_exchanges), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-def process_foods_flat_favorite_v2(result):
-    foods = []
-    for item in result:
-        print(item)  # Adiciona um log para inspecionar o conteúdo de 'item'
-
-        # Transforma food_name e portion_size em dicionários
-        food_name = {
-            "en": item.get('food_name_en', ''),
-            "pt": item.get('food_name_pt', ''),
-            "es": item.get('food_name_es', '')
-        }
-        portion_size = {
-            "en": item.get('portion_size_en', ''),
-            "es": item.get('portion_size_es', ''),
-            "pt": item.get('portion_size_pt', '')
-        }
-        
-        # Prepara o item com as informações do alimento, excluindo os campos não necessários para este contexto
-        food_info = {
-            'id': item.get('food_id'),
-            'food_name': food_name,
-            'portion_size': portion_size,
-            'group_id': item.get('food_group_id'),
-            'calories': item.get('calories'),
-            'carbohydrates': item.get('carbohydrates'),
-            'proteins': item.get('proteins'),
-            'alcohol': item.get('alcohol'),
-            'total_fats': item.get('total_fats'),
-            'saturated_fats': item.get('saturated_fats'),
-            'monounsaturated_fats': item.get('monounsaturated_fats'),
-            'polyunsaturated_fats': item.get('polyunsaturated_fats'),
-            'trans_fats': item.get('trans_fats'),
-            'fibers': item.get('fibers'),
-            'calcium': item.get('calcium'),
-            'sodium': item.get('sodium'),
-            'magnesium': item.get('magnesium'),
-            'iron': item.get('iron'),
-            'zinc': item.get('zinc'),
-            'potassium': item.get('potassium'),
-            'vitamin_a': item.get('vitamin_a'),
-            'vitamin_c': item.get('vitamin_c'),
-            'vitamin_d': item.get('vitamin_d'),
-            'vitamin_e': item.get('vitamin_e'),
-            'vitamin_b1': item.get('vitamin_b1'),
-            'vitamin_b2': item.get('vitamin_b2'),
-            'vitamin_b3': item.get('vitamin_b3'),
-            'vitamin_b6': item.get('vitamin_b6'),
-            'vitamin_b9': item.get('vitamin_b9'),
-            'vitamin_b12': item.get('vitamin_b12'),
-            'created_at': item.get('created_at'),
-            'updated_at': item.get('updated_at'),
-            'weight_in_grams': item.get('weight_in_grams'),
-            'image_url': item.get('image_url'),
-            'allergens': item.get('allergens', '').split('; ') if item.get('allergens') else [],
-            'categories': item.get('categories', '').split('; ') if item.get('categories') else []
-        }
-        
-        # Prepara o item com as informações da troca favorita
-        favorite_item = {
-            'id': item.get('id'),
-            'change_type_id': item.get('change_type_id'),
-            'grams_or_calories': item.get('grams_or_calories'),
-            'value_to_convert': item.get('value_to_convert'),
-            'food_info': food_info
-        }
-        
-        foods.append(favorite_item)
-    
-    return foods
-
-@favorites_blueprint.route('/v2/get_meals', methods=['GET'])
-@jwt_required()
-def get_meals():
-    try:
-        # Obter o ID do usuário a partir do token JWT
-        jwt_claims = get_jwt()
-
-        user_id = jwt_claims.get('user_id')
-
-        # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
-        query = "SELECT * FROM meals WHERE user_id = %s"
-        
-        params = (user_id,)
-        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
-        return jsonify(meals), 200
-    except Exception as e: 
-        return jsonify({'error': str(e)}), 400
-    
-@favorites_blueprint.route('/v3/get_meals', methods=['GET'])
-@jwt_required()
-def get_meals_v3():
-    try:
-        # Obter o ID do usuário a partir do token JWT
-        jwt_claims = get_jwt()
-
-        user_id = jwt_claims.get('user_id')
-
-        # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
-        query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 0"
-        
-        params = (user_id,)
-        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
-        
-        return jsonify(meals), 200
-    except Exception as e: 
-        return jsonify({'error': str(e)}), 400
-
-@favorites_blueprint.route('/v1/get_foods_from_favorite_meal', methods=['POST'])
-def get_meal_exchanges():
-
-    print(request.get_json())
-    try:
-        # Verifica se o body contém o meal_id
-        data = request.get_json()
-        if not data or 'meal_id' not in data:
-            return jsonify({'status': 'error', 'message': 'meal_id is required'}), 400
-
-        meal_id = data['meal_id']
-
-        # Buscar os meal_exchanges_favorites
-        meal_exchanges_query = """
-            SELECT * FROM meal_exchanges_favorite WHERE meal_id = %s
-        """
-        exchanges = execute_query_with_params(meal_exchanges_query, (meal_id,), fetch_all=True)
-
-        # Buscar o alimento completo para cada meal_exchange
-        food_query = """
-        SELECT 
-            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
-            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
-            g.image_url AS group_image_url, g.main_nutrient AS group_main_nutrient,
-            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-            f.vitamin_b9, f.vitamin_b12, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
-            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
-            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
-        FROM foods f
-        LEFT JOIN groups g ON f.group_id = g.id
-        LEFT JOIN food_allergen fa ON f.id = fa.food_id
-        LEFT JOIN allergens a ON fa.allergen_id = a.id
-        LEFT JOIN food_category fc ON f.id = fc.food_id
-        LEFT JOIN categories c ON fc.category_id = c.id
-        WHERE f.id = %s
-        GROUP BY f.id;
-        """
-
-        for exchange in exchanges:
-            exchange["value_to_convert"] = str(exchange["value_to_convert"])
-
-        return jsonify(exchanges), 200
-    except Exception as e:
-        print(e)
-        return jsonify({'status': 'error', 'message': str(e)}), 401
+# Rotas para Meals
 
 @favorites_blueprint.route('/v1/save_meal', methods=['POST'])
 @jwt_required()
-def save_meal():
+def save_meal_v1():
     data = request.json
     meal_name = data.get('meal_name')
     jwt_claims = get_jwt()
@@ -827,10 +574,9 @@ def save_meal():
         if connection:
             connection.close()
 
-
 @favorites_blueprint.route('/v1/delete_meal', methods=['DELETE'])
 @jwt_required()
-def delete_meal():
+def delete_meal_v1():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
@@ -857,18 +603,52 @@ def delete_meal():
         return jsonify({"statusCode": "200", "message": "Meal deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
 
-@favorites_blueprint.route('/v2/get_original_meals', methods=['GET'])
+@favorites_blueprint.route('/v2/get_meals', methods=['GET'])
 @jwt_required()
-def get_original_meals():
+def get_meals_v2():
     try:
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-
         user_id = jwt_claims.get('user_id')
 
-        # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
+        # Consulta SQL para buscar as refeições do usuário
+        query = "SELECT * FROM meals WHERE user_id = %s"
+        
+        params = (user_id,)
+        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        
+        return jsonify(meals), 200
+    except Exception as e: 
+        return jsonify({'error': str(e)}), 400
+
+@favorites_blueprint.route('/v3/get_meals', methods=['GET'])
+@jwt_required()
+def get_meals_v3():
+    try:
+        # Obter o ID do usuário a partir do token JWT
+        jwt_claims = get_jwt()
+        user_id = jwt_claims.get('user_id')
+
+        # Consulta SQL para buscar as refeições não originais do usuário
+        query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 0"
+        
+        params = (user_id,)
+        meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        
+        return jsonify(meals), 200
+    except Exception as e: 
+        return jsonify({'error': str(e)}), 400
+
+@favorites_blueprint.route('/v2/get_original_meals', methods=['GET'])
+@jwt_required()
+def get_original_meals_v2():
+    try:
+        # Obter o ID do usuário a partir do token JWT
+        jwt_claims = get_jwt()
+        user_id = jwt_claims.get('user_id')
+
+        # Consulta SQL para buscar as refeições originais do usuário
         query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 1"
         
         params = (user_id,)
@@ -877,3 +657,151 @@ def get_original_meals():
         return jsonify(meals), 200
     except Exception as e: 
         return jsonify({'error': str(e)}), 400
+
+@favorites_blueprint.route('/v1/get_foods_from_favorite_meal', methods=['POST'])
+@jwt_required()
+def get_foods_from_favorite_meal_v1():
+    try:
+        print(request.get_json())
+        # Verifica se o body contém o meal_id
+        data = request.get_json()
+        if not data or 'meal_id' not in data:
+            return jsonify({'status': 'error', 'message': 'meal_id is required'}), 400
+
+        meal_id = data['meal_id']
+
+        # Buscar os meal_exchanges_favorites
+        meal_exchanges_query = """
+            SELECT * FROM meal_exchanges_favorite WHERE meal_id = %s
+        """
+        exchanges = execute_query_with_params(meal_exchanges_query, (meal_id,), fetch_all=True)
+
+        if not exchanges:
+            return jsonify({'status': 'error', 'message': 'No exchanges found for the given meal_id'}), 404
+
+        # Buscar o alimento completo para cada meal_exchange
+        food_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, 
+            f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
+            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
+            g.image_url AS group_image_url, g.main_nutrient AS group_main_nutrient,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, 
+            f.saturated_fats, f.monounsaturated_fats, f.polyunsaturated_fats, 
+            f.trans_fats, f.fibers, f.calcium, f.sodium, f.magnesium, 
+            f.iron, f.zinc, f.potassium, f.vitamin_a, f.vitamin_c, 
+            f.vitamin_d, f.vitamin_e, f.vitamin_b1, f.vitamin_b2, 
+            f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
+            f.created_at, f.updated_at, f.weight_in_grams, 
+            f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
+        FROM foods f
+        LEFT JOIN groups g ON f.group_id = g.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        WHERE f.id = %s
+        GROUP BY f.id;
+        """
+
+        processed_exchanges = []
+        for exchange in exchanges:
+            food_id = exchange.get('food_id')
+            if not food_id:
+                continue  # Pular se não houver food_id
+
+            food_data = execute_query_with_params(food_query, (food_id,), fetch_all=False, should_commit=False)
+            if not food_data:
+                continue  # Pular se não houver dados do alimento
+
+            # Processar o alimento de forma dinâmica
+            food_info = process_food_item_dynamic(food_data)
+
+            # Adicionar informações da troca favorita
+            exchange['value_to_convert'] = str(exchange.get("value_to_convert", ""))
+            exchange['food_info'] = food_info
+
+            processed_exchanges.append(exchange)
+
+        return jsonify(processed_exchanges), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'status': 'error', 'message': str(e)}), 401
+
+# Rotas para Exchanges de Favorite
+
+@favorites_blueprint.route('/v2/get_foods_from_favorite_meal', methods=['POST'])
+@jwt_required()
+def get_foods_from_favorite_meal_v2():
+    try:
+        print(request.get_json())
+        # Verifica se o body contém o meal_id
+        data = request.get_json()
+        if not data or 'meal_id' not in data:
+            return jsonify({'status': 'error', 'message': 'meal_id is required'}), 400
+
+        meal_id = data['meal_id']
+
+        # Buscar os meal_exchanges_favorite
+        meal_exchanges_query = """
+            SELECT * FROM meal_exchanges_favorite WHERE meal_id = %s
+        """
+        exchanges = execute_query_with_params(meal_exchanges_query, (meal_id,), fetch_all=True)
+
+        if not exchanges:
+            return jsonify({'status': 'error', 'message': 'No exchanges found for the given meal_id'}), 404
+
+        # Buscar o alimento completo para cada meal_exchange
+        food_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, 
+            f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
+            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
+            g.image_url AS group_image_url, g.main_nutrient AS group_main_nutrient,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, 
+            f.saturated_fats, f.monounsaturated_fats, f.polyunsaturated_fats, 
+            f.trans_fats, f.fibers, f.calcium, f.sodium, f.magnesium, 
+            f.iron, f.zinc, f.potassium, f.vitamin_a, f.vitamin_c, 
+            f.vitamin_d, f.vitamin_e, f.vitamin_b1, f.vitamin_b2, 
+            f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
+            f.created_at, f.updated_at, f.weight_in_grams, 
+            f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
+        FROM foods f
+        LEFT JOIN groups g ON f.group_id = g.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        WHERE f.id = %s
+        GROUP BY f.id;
+        """
+
+        processed_exchanges = []
+        for exchange in exchanges:
+            food_id = exchange.get('food_id')
+            if not food_id:
+                continue  # Pular se não houver food_id
+
+            food_data = execute_query_with_params(food_query, (food_id,), fetch_all=False, should_commit=False)
+            if not food_data:
+                continue  # Pular se não houver dados do alimento
+
+            # Processar o alimento de forma dinâmica
+            food_info = process_food_item_dynamic(food_data)
+
+            # Adicionar informações da troca favorita
+            exchange['value_to_convert'] = str(exchange.get("value_to_convert", ""))
+            exchange['food_info'] = food_info
+
+            processed_exchanges.append(exchange)
+
+        return jsonify(processed_exchanges), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'status': 'error', 'message': str(e)}), 401
