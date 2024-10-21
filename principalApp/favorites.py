@@ -228,7 +228,7 @@ def list_favorite_exchanges_v1():
             ef.change_type_id,
             ef.grams_or_calories,
             ef.value_to_convert,
-            f.id as food_id,
+            f.id,
             f.food_name_en,
             f.food_name_pt,
             f.food_name_es,
