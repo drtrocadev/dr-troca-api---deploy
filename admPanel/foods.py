@@ -623,13 +623,20 @@ def adm_edit_food_v3():
             if data['image_url'].startswith("http"):
                 data['image_url'] = data['image_url']
             else:
+                # Se não for uma URL válida, faz o upload da imagem e gera o link
                 image_url = upload_image_and_get_url(data['image_url'])
                 data['image_url'] = image_url
+
+                # Gera e faz o upload da miniatura
+                thumb_url = generate_and_upload_thumbnail(data['image_url'])
+                data['thumb_url'] = thumb_url  # Armazena o thumb_url no dicionário de dados
+
             updated_data['image_url'] = data['image_url']  # Armazena a atualização
+            updated_data['thumb_url'] = data.get('thumb_url', '')  # Armazena a miniatura gerada (se houver)
 
         # Campos que podem ser atualizados
         updatable_fields = [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url',
+            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url', 'thumb_url',
             'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats', 
             'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 
             'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 
@@ -693,15 +700,15 @@ def adm_edit_food_v3():
             # Construindo a query de inserção atualizada
             sql_insert_log = """
                 INSERT INTO food_update_logs (
-                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url,
+                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url, thumb_url,
                     weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
                     saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats,
                     fibers, calcium, sodium, magnesium, iron, zinc, potassium,
                     vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
                     vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens,
-                    changed_by, log_type, 'caffeine', 'featured', 'taurine'
+                    changed_by, log_type, caffeine, featured, taurine
                 ) VALUES (
-                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s,
+                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s, %(thumb_url)s,
                     %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
                     %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
                     %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
