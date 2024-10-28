@@ -748,6 +748,8 @@ def adm_add_food_v5():
                 "error": "Missing parameters",
                 "missing_parameters": missing_params
             }), 400
+        
+        print(data['featured'])
 
         conn = db_connection_pool.get_connection()  # Substitua pela sua função real de conexão ao banco
         conn.autocommit = False  # Desativa o commit automático
