@@ -636,13 +636,17 @@ def adm_edit_food_v3():
 
         # Campos que podem ser atualizados
         updatable_fields = [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url', 'thumb_url',
-            'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats', 
-            'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 
-            'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 
-            'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 
-            'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'caffeine', 'featured', 'taurine'
+            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 
+            'group_id', 'image_url', 'thumb_url', 'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 
+            'alcohol', 'total_fats', 'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 
+            'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c', 
+            'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 
+            'vitamin_b12', 'caffeine', 'taurine', 'featured'
         ]
+
+        # Converte o valor de 'featured' para 0 ou 1
+        if 'featured' in data:
+            data['featured'] = 1 if data['featured'] else 0
 
         set_clause = ', '.join([f"{field} = %s" for field in updatable_fields if field in data])
         params = [data[field] for field in updatable_fields if field in data]
@@ -680,6 +684,7 @@ def adm_edit_food_v3():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
     finally:
         if updated_data:
