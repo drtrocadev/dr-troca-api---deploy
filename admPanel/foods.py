@@ -773,6 +773,8 @@ def adm_add_food_v5():
         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
+        featured = 1 if data.get('featured', False) else 0
+
         # Parâmetros para a inserção do alimento
         params = (
             data['food_name_en'], data['food_name_pt'], data['food_name_es'],
@@ -784,7 +786,7 @@ def adm_add_food_v5():
             data['magnesium'], data['iron'], data['zinc'], data['potassium'], data['vitamin_a'], data['vitamin_c'], 
             data['vitamin_d'], data['vitamin_e'], data['vitamin_b1'], data['vitamin_b2'], data['vitamin_b3'], 
             data['vitamin_b6'], data['vitamin_b9'], data['vitamin_b12'],
-            data['taurine'], data['caffeine'], data['featured'], thumb_url
+            data['taurine'], data['caffeine'], featured, thumb_url
         )
         
         cursor.execute(sql_insert_food, params)
