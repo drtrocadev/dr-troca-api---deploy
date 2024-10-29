@@ -754,9 +754,17 @@ def adm_add_food_v5():
                 "missing_parameters": missing_params
             }), 400
         
-        print(f"Featured value: {data['featured']}, Type: {type(data['featured'])}")
-        print(data['featured'])
-        featured = bool(data.get('featured', False))
+        featured_value = data.get('featured', False)
+        print(data.get('featured'))
+
+        # Verifica o tipo e converte para booleano de acordo
+        if isinstance(featured_value, bool):
+            featured = featured_value
+        elif isinstance(featured_value, str):
+            featured = featured_value.lower() == "true"
+        else:
+            featured = False
+
         print(f"Converted Featured: {featured}")
 
         conn = db_connection_pool.get_connection()  # Substitua pela sua função real de conexão ao banco
