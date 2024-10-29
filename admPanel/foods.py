@@ -754,7 +754,10 @@ def adm_add_food_v5():
                 "missing_parameters": missing_params
             }), 400
         
+        print(f"Featured value: {data['featured']}, Type: {type(data['featured'])}")
         print(data['featured'])
+        featured = bool(data.get('featured', False))
+        print(f"Converted Featured: {featured}")
 
         conn = db_connection_pool.get_connection()  # Substitua pela sua função real de conexão ao banco
         conn.autocommit = False  # Desativa o commit automático
