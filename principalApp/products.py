@@ -314,10 +314,10 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
             GROUP BY f.id;
             """
             # Executa a consulta e atualiza o cache
-            cache_foods = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
-
-        # Usa o cache para buscar os alimentos do grupo
-        all_foods_of_group = cache_foods
+            all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
+        else:
+            # Usa o cache para buscar os alimentos do grupo
+            all_foods_of_group = cache_foods
 
         # Busca o alimento específico pelo ID
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
