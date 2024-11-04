@@ -210,91 +210,127 @@ def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories,
         similar_foods = []
         update_factor = 0.0
 
+        # Tenta calcular o fator de atualização com base em gramas ou calorias
         if grams_or_calories == "grams":
-            weight_in_grams = float(actual_food['weight_in_grams'])
-            update_factor = float(value_to_convert) / weight_in_grams if weight_in_grams != 0 else 1.0
+            try:
+                weight_in_grams = float(actual_food.get('weight_in_grams', 0) or 0.00)
+                update_factor = float(value_to_convert) / weight_in_grams if weight_in_grams != 0 else 1.0
+            except (ValueError, TypeError):
+                print("Erro ao converter 'weight_in_grams' para float.")
+                update_factor = 1.0
+            
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                try:
+                    value = float(str(actual_food.get(property, 0) or 0.00).strip()) * update_factor
+                    actual_food[property] = round(value, 2)  # Mantém como float
+                    print(f"'{property}' convertido e atualizado para: {actual_food[property]}")
+                except (ValueError, TypeError):
+                    print(f"Erro ao converter o campo '{property}' em actual_food para float. Valor atual: {actual_food.get(property)}")
+                    continue
+
         else:
-            calories = float(actual_food['calories'])
-            update_factor = float(value_to_convert) / calories if calories != 0 else 1.0
+            try:
+                calories = float(str(actual_food.get('calories', 0) or 0.00).strip())
+                update_factor = float(value_to_convert) / calories if calories != 0 else 1.0
+            except (ValueError, TypeError):
+                print("Erro ao converter 'calories' para float.")
+                update_factor = 1.0
+            
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                try:
+                    value = float(str(actual_food.get(property, 0) or 0.00).strip()) * update_factor
+                    actual_food[property] = round(value, 2)  # Mantém como float
+                    print(f"'{property}' convertido e atualizado para: {actual_food[property]}")
+                except (ValueError, TypeError):
+                    print(f"Erro ao converter o campo '{property}' em actual_food para float. Valor atual: {actual_food.get(property)}")
+                    continue
 
-        maximum_allowed = float(actual_food[main_nutrient]) * multiplier_upper
-        minimum_allowed = float(actual_food[main_nutrient]) * multiplier_lower
+        # Define os limites de nutrientes
+        try:
+            maximum_allowed = float(str(actual_food[main_nutrient] or 0.00).strip()) * multiplier_upper
+            minimum_allowed = float(str(actual_food[main_nutrient] or 0.00).strip()) * multiplier_lower
+            print(f"Limites de '{main_nutrient}': mínimo {minimum_allowed}, máximo {maximum_allowed}")
+        except (ValueError, TypeError):
+            print(f"Erro ao converter o campo '{main_nutrient}' para float. Valor atual: {actual_food.get(main_nutrient)}")
+            maximum_allowed = minimum_allowed = 0
 
+        # Processa os alimentos similares
         for food in all_foods_of_group:
             if food['id'] == actual_food['id']:
-                continue  # Skip the actual food itself
+                continue
 
-            food_calories = float(food['calories'])
-            local_update_factor = float(actual_food['calories']) / food_calories if food_calories != 0 else 1.0
-            update_multiplier = 1 + ((local_update_factor - 1) * 100) / 100
+            try:
+                food_calories = float(str(food.get('calories', 0) or 0.00).strip())
+                local_update_factor = float(actual_food['calories']) / food_calories if food_calories != 0 else 1.0
+                update_multiplier = 1 + ((local_update_factor - 1) * 100) / 100
+            except (ValueError, TypeError):
+                print("Erro ao converter 'calories' de food para float.")
+                continue
 
             for property in properties_to_update:
-                new_value = float(food[property]) * update_multiplier
-                food[property] = f"{round(new_value, 2)}"
+                try:
+                    current_value = str(food.get(property, 0) or 0.00).strip()
+                    new_value = float(current_value) * update_multiplier
+                    food[property] = round(new_value, 2)
+                    print(f"'{property}' em food atualizado para: {food[property]}")
+                except (ValueError, TypeError):
+                    print(f"Erro ao converter o campo '{property}' em food para float. Valor atual: {food.get(property)}")
+                    continue
 
-            if minimum_allowed <= float(food[main_nutrient]) <= maximum_allowed:
-                similar_foods.append(food)
+            # Verifica se o alimento está dentro do limite permitido
+            try:
+                main_nutrient_value = str(food.get(main_nutrient, 0) or 0.00).strip()
+                if minimum_allowed <= float(main_nutrient_value) <= maximum_allowed:
+                    similar_foods.append(food)
+            except (ValueError, TypeError):
+                print(f"Erro ao converter o campo '{main_nutrient}' em food para float. Valor atual: {food.get(main_nutrient)}")
+                continue
 
         return similar_foods
     except Exception as e:
-        print("erro na find daily")
+        print("Erro na função find_daily_similar_foods")
         print(e)
         return []
+
     
 def find_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):
     try:
         print(float(value_to_convert))
         similar_foods = []
         update_factor = 0.0
-        print(f"base {actual_food['weight_in_grams']}")
 
         if grams_or_calories == "grams":
-            weight_in_grams = float(actual_food['weight_in_grams'])
+            weight_in_grams = float(actual_food.get('weight_in_grams', 0) or 0.00)
             update_factor = float(value_to_convert) / weight_in_grams if weight_in_grams != 0 else 1.0
-            print(f"update_factor {update_factor}")
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                value = float(actual_food.get(property, 0) or 0.00) * update_factor
+                actual_food[property] = round(value, 2)
         elif grams_or_calories == "calories":
-            calories = float(actual_food['calories'])
+            calories = float(actual_food.get('calories', 0) or 0.00)
             update_factor = float(value_to_convert) / calories if calories != 0 else 1.0
-            print(f"update_factor {update_factor}")
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                value = float(actual_food.get(property, 0) or 0.00) * update_factor
+                actual_food[property] = round(value, 2)
         else:
             return []
 
-        print(f"main_nutrient {main_nutrient}")
-        print(f"actual_food[main_nutrient] {actual_food[main_nutrient]}")
-        maximum_allowed = float(actual_food[main_nutrient]) * multiplier_upper
-        minimum_allowed = float(actual_food[main_nutrient]) * multiplier_lower
+        maximum_allowed = float(actual_food.get(main_nutrient, 0) or 0.00) * multiplier_upper
+        minimum_allowed = float(actual_food.get(main_nutrient, 0) or 0.00) * multiplier_lower
 
         for food in all_foods_of_group:
             if food['id'] == actual_food['id']:
-                continue  # Skip the actual food itself
-            print(food['food_name_pt'])
+                continue
 
-            food_calories = float(food['calories'])
+            food_calories = float(food.get('calories', 0) or 0.00)
             local_update_factor = float(actual_food['calories']) / food_calories if food_calories != 0 else 1.0
             update_multiplier = 1 + ((local_update_factor - 1) * 100) / 100
 
             for property in properties_to_update:
-                new_value = float(food[property]) * update_multiplier
-                food[property] = f"{round(new_value, 2)}"
+                new_value = float(food.get(property, 0) or 0.00) * update_multiplier
+                food[property] = round(new_value, 2)
 
-            if minimum_allowed <= float(food[main_nutrient]) <= maximum_allowed:
-                print(f"minimo {minimum_allowed}")
-                print("atual")
-                print(f"atual {food[main_nutrient]}")
-                print(f"maximo {maximum_allowed}")
-                if float(actual_food['weight_in_grams']) > float(food["weight_in_grams"]):
+            if minimum_allowed <= float(food.get(main_nutrient, 0) or 0.00) <= maximum_allowed:
+                if float(actual_food['weight_in_grams']) > float(food.get("weight_in_grams", 0) or 0.00):
                     similar_foods.append(food)
 
         return similar_foods
@@ -302,42 +338,43 @@ def find_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calories
         print("erro na find hangry")
         print(e)
         return []
-    
+
+
 def find_not_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):
     try:
         similar_foods = []
         update_factor = 0.0
 
         if grams_or_calories == "grams":
-            weight_in_grams = float(actual_food['weight_in_grams'])
+            weight_in_grams = float(actual_food.get('weight_in_grams', 0) or 0.00)
             update_factor = float(value_to_convert) / weight_in_grams if weight_in_grams != 0 else 1.0
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                value = float(actual_food.get(property, 0) or 0.00) * update_factor
+                actual_food[property] = round(value, 2)
         else:
-            calories = float(actual_food['calories'])
+            calories = float(actual_food.get('calories', 0) or 0.00)
             update_factor = float(value_to_convert) / calories if calories != 0 else 1.0
             for property in properties_to_update:
-                value = float(actual_food[property]) * update_factor
-                actual_food[property] = f"{round(value, 2)}"
+                value = float(actual_food.get(property, 0) or 0.00) * update_factor
+                actual_food[property] = round(value, 2)
 
-        maximum_allowed = float(actual_food[main_nutrient]) * multiplier_upper
-        minimum_allowed = float(actual_food[main_nutrient]) * multiplier_lower
+        maximum_allowed = float(actual_food.get(main_nutrient, 0) or 0.00) * multiplier_upper
+        minimum_allowed = float(actual_food.get(main_nutrient, 0) or 0.00) * multiplier_lower
 
         for food in all_foods_of_group:
             if food['id'] == actual_food['id']:
-                continue  # Skip the actual food itself
+                continue
 
-            food_calories = float(food['calories'])
+            food_calories = float(food.get('calories', 0) or 0.00)
             local_update_factor = float(actual_food['calories']) / food_calories if food_calories != 0 else 1.0
             update_multiplier = 1 + ((local_update_factor - 1) * 100) / 100
 
             for property in properties_to_update:
-                new_value = float(food[property]) * update_multiplier
-                food[property] = f"{round(new_value, 2)}"
+                new_value = float(food.get(property, 0) or 0.00) * update_multiplier
+                food[property] = round(new_value, 2)
 
-            if minimum_allowed <= float(food[main_nutrient]) <= maximum_allowed:
-                if float(actual_food['weight_in_grams']) < float(food["weight_in_grams"]):
+            if minimum_allowed <= float(food.get(main_nutrient, 0) or 0.00) <= maximum_allowed:
+                if float(actual_food['weight_in_grams']) < float(food.get("weight_in_grams", 0) or 0.00):
                     similar_foods.append(food)
 
         return similar_foods
@@ -346,64 +383,55 @@ def find_not_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calo
         print(e)
         return []
 
+
 def find_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert):
     similar_foods = []
 
     for food in all_foods_of_group:
         if food['id'] == actual_food['id']:
-            continue  # Skip the actual food itself
+            continue
 
-        success_count = 0  # Contador para rastrear o número de nutrientes bem-sucedidos
-
-        # Valor de calorias do alimento atual
-        actual_food_calories = 1.0
-        food_calories = 1.0
+        success_count = 0
+        actual_food_calories = float(actual_food.get('calories', 0) or 0.00)
+        food_calories = float(food.get('calories', 0) or 0.00)
 
         if grams_or_calories == 'grams':
-            actual_food_calories = float(actual_food['weight_in_grams'])
-            food_calories = float(food['weight_in_grams'])
+            actual_food_calories = float(actual_food.get('weight_in_grams', 0) or 0.00)
+            food_calories = float(food.get('weight_in_grams', 0) or 0.00)
         elif grams_or_calories == 'calories':
-            actual_food_calories = float(actual_food['calories'])
-            food_calories = float(food['calories'])
+            actual_food_calories = float(actual_food.get('calories', 0) or 0.00)
+            food_calories = float(food.get('calories', 0) or 0.00)
         else:
             raise ValueError("Invalid value for grams_or_calories. Must be 'grams' or 'calories'.")
 
         for nutrient in nutrients:
+            actual_food_value = float(actual_food.get(nutrient, 0) or 0.00)
+            food_value = float(food.get(nutrient, 0) or 0.00)
 
-            # Certifique-se de que o valor do nutriente seja um Decimal
-            actual_food_value = float(actual_food[nutrient])
-            food_value = float(food[nutrient])
+            actual_food_nutrient_per_calorie = actual_food_value / actual_food_calories if actual_food_calories else 0.00
+            food_nutrient_per_calorie = food_value / food_calories if food_calories else 0.00
 
-            # Calcular a quantidade de nutrientes por caloria
-            actual_food_nutrient_per_calorie = actual_food_value / actual_food_calories
-            food_nutrient_per_calorie = food_value / food_calories
-
-            lower_bound = actual_food_nutrient_per_calorie * multiplier_lower 
+            lower_bound = actual_food_nutrient_per_calorie * multiplier_lower
             upper_bound = actual_food_nutrient_per_calorie * multiplier_upper
 
             if lower_bound <= food_nutrient_per_calorie <= upper_bound:
-                success_count += 1  # Incrementa o contador se o nutriente atender aos critérios
-                            
-            if grams_or_calories == 'grams':
-                conversion_factor = float(value_to_convert) / float(food['weight_in_grams'])
-            elif grams_or_calories == 'calories':
-                conversion_factor = float(value_to_convert) / float(food['calories'])
+                success_count += 1
 
-            food[nutrient] = f"{float(food[nutrient]) * conversion_factor}"
+            conversion_factor = (float(value_to_convert) / food_calories) if grams_or_calories == 'calories' else (float(value_to_convert) / float(food.get('weight_in_grams', 0) or 0.00))
+            food[nutrient] = round(float(food.get(nutrient, 0) or 0.00) * conversion_factor, 2)
 
             if grams_or_calories == 'grams':
-                food['weight_in_grams'] = f"{float(value_to_convert)}"
-                food['calories'] = f"{float(food['calories']) * conversion_factor}"
+                food['weight_in_grams'] = round(float(value_to_convert), 2)
+                food['calories'] = round(food_calories * conversion_factor, 2)
             elif grams_or_calories == 'calories':
-                food['calories'] = f"{float(value_to_convert)}"
-                food['weight_in_grams'] = f"{float(food['weight_in_grams']) * conversion_factor}"
+                food['calories'] = round(float(value_to_convert), 2)
+                food['weight_in_grams'] = round(float(food.get('weight_in_grams', 0) or 0.00) * conversion_factor, 2)
 
-
-        # Se todos os nutrientes atenderem aos critérios, adicione o alimento à lista de alimentos similares
         if success_count == len(nutrients):
             similar_foods.append(food)
 
     return similar_foods
+
 
 def convert_food_values(food, nutrients, grams_or_calories, value_to_convert):
     converted_food = food.copy()
