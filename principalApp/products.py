@@ -180,6 +180,7 @@ def get_foods_v3():
 
             # Executa a consulta
             result = execute_query_without_params(sql_query, fetch_all=True)
+            cache_foods = result
             
             # Processar os itens de comida (pode ser alguma lógica customizada)
             foods_by_group = process_food_items(result)
