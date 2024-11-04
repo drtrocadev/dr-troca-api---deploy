@@ -10,6 +10,7 @@ from admPanel.functions import execute_query
 from admPanel.functions import upload_image_and_get_url
 from admPanel.functions import generate_and_upload_thumbnail
 from admPanel.functions import upload_category_cover_and_get_url
+from principalApp.products import update_cache_all_foods
 
 adm_foods_blueprint = Blueprint('adm_foods_blueprint', __name__)
 
@@ -92,6 +93,8 @@ def adm_delete_food(food_id):
         """
 
         execute_query(sql_insert_log, log_data)
+
+        update_cache_all_foods()
   
 @adm_foods_blueprint.route('/adm/v4/add_food', methods=['POST'])
 @jwt_required()
@@ -724,6 +727,7 @@ def adm_edit_food_v3():
             """
 
             execute_query(sql_insert_log, log_data)
+            update_cache_all_foods()
 
 @adm_foods_blueprint.route('/adm/v5/add_food', methods=['POST'])
 @jwt_required()
@@ -879,3 +883,4 @@ def adm_add_food_v5():
         """
 
         execute_query(sql_insert_log, log_data)
+        update_cache_all_foods()
