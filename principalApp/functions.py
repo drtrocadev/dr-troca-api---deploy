@@ -43,6 +43,49 @@ def process_foods_flat(result):
 
     return foods
 
+def process_foods_flat_v2(result):
+    foods = []
+    for item in result:
+        # Extrai 'food_name' e 'portion_size' diretamente como dicionários
+        food_name = item.get('food_name', {})
+        portion_size = item.get('portion_size', {})
+    
+        # 'featured' já é um booleano, mas garantimos com bool()
+        featured = bool(item.get('featured', False))
+    
+        # Define as chaves a serem excluídas, se houver
+        excluded_keys = [
+            'group_name_en', 'group_name_pt', 'group_name_es',
+            'group_description_en', 'group_description_pt', 'group_description_es',
+            'group_image_url'
+            'food_name_en', 'food_name_pt', 'food_name_es',
+            'portion_size_en', 'portion_size_es', 'portion_size_pt'
+        ]
+        
+        # Prepara o item com as informações do alimento, excluindo os campos não necessários
+        food_item = {key: value for key, value in item.items() if key not in excluded_keys}
+    
+        # Adiciona os dicionários de 'food_name' e 'portion_size'
+        food_item['food_name'] = food_name
+        food_item['portion_size'] = portion_size
+        
+        # Como 'allergens' e 'categories' já são listas, apenas asseguramos que existam
+        food_item['allergens'] = item.get('allergens', [])
+        food_item['categories'] = item.get('categories', [])
+        
+        # Atualiza o campo 'featured'
+        food_item['featured'] = featured
+    
+        # Garante que os campos 'taurine', 'caffeine' e 'thumb_url' estejam presentes
+        food_item['taurine'] = item.get('taurine', "")
+        food_item['caffeine'] = item.get('caffeine', "")
+        food_item['thumb_url'] = item.get('thumb_url', "")
+    
+        foods.append(food_item)
+    
+    return foods
+
+
 def process_food_items(result):
     # Inicializa um dicionário para agrupar os alimentos por group_id
     foods_by_group = {}
@@ -103,16 +146,22 @@ def process_food_items(result):
     return foods_by_group
 
 def get_food_by_id(food_id, foods):
-    print(food_id)
-    # Percorre todos os alimentos na lista
-    for food in foods:
-        # Verifica se o id do alimento atual corresponde ao food_id fornecido
-        if food['id'] == food_id:
-            # Retorna o alimento correspondente
-            return food
-    # Se nenhum alimento com o id correspondente for encontrado, retorna None
-    print("retornou none")
-    return None
+    try:
+        print(food_id)
+        # Percorre todos os alimentos na lista
+        for food in foods:
+            # Verifica se o id do alimento atual corresponde ao food_id fornecido
+            if food['id'] == food_id:
+                # Retorna o alimento correspondente
+                return food
+        # Se nenhum alimento com o id correspondente for encontrado, retorna None
+        print("retornou none")
+        return None
+    except Exception as e:
+        # Imprime a exceção exata que ocorreu
+        print(f"Ocorreu um erro: {e}")
+        return None
+
 
 # Lista de todos os nutrientes a serem verificados
 nutrients = [

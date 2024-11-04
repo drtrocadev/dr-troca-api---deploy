@@ -6,6 +6,7 @@ from admPanel.functions import execute_query_without_params
 from admPanel.functions import execute_query_with_params
 from principalApp.functions import process_food_items
 from principalApp.functions import process_foods_flat
+from principalApp.functions import process_foods_flat_v2
 from principalApp.functions import get_food_by_id
 from principalApp.functions import find_similar_foods
 from principalApp.functions import find_daily_similar_foods
@@ -273,7 +274,10 @@ def process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to
     else:
         return {'status': 'error', 'message': 'still not implemented'}, 900
 
-    return process_foods_flat(foods_of_group), 200
+    if change_type_id == 0:
+        return process_foods_flat_v2(foods_of_group), 200
+    else:
+        return process_foods_flat(foods_of_group), 200
 
 def remove_duplicates_by_food_name_pt(response):
     unique_response = {}
