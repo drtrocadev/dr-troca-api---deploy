@@ -274,10 +274,7 @@ def process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to
     else:
         return {'status': 'error', 'message': 'still not implemented'}, 900
 
-    if change_type_id == 0:
-        return process_foods_flat_v2(foods_of_group), 200
-    else:
-        return process_foods_flat(foods_of_group), 200
+    return process_foods_flat(foods_of_group), 200
 
 def remove_duplicates_by_food_name_pt(response):
     unique_response = {}
