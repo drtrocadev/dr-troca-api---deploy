@@ -6,55 +6,49 @@ from admPanel.functions import execute_query_without_params
 from admPanel.functions import execute_query_with_params
 from principalApp.functions import process_food_items
 from principalApp.functions import process_foods_flat
-from principalApp.functions import process_foods_flat_v2
 from principalApp.functions import get_food_by_id
 from principalApp.functions import find_similar_foods
 from principalApp.functions import find_daily_similar_foods
 from principalApp.functions import find_hangry_similar_foods
 from principalApp.functions import find_not_hangry_similar_foods
-from principalApp.cache import cache_foods
-from principalApp.cache import update_cache
 
 products_blueprint = Blueprint('products_blueprint', __name__)
 
+# ROTAS ANTIGAS (INALTERADAS)
+
 @products_blueprint.route('/v1/get_all_foods', methods=['GET'])
 def get_foods():
-    global cache_foods
     try:
-        if cache_foods == []:
-            # Consulta SQL para buscar todos os alimentos com categorias, alergias e grupos
-            sql_query = """
-            SELECT 
-                f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-                g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
-                g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
-                g.image_url AS group_image_url,
-                f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-                f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-                f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-                f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-                f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-                f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-                f.weight_in_grams, f.image_url, f.thumb_url,
-                GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
-                GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
-            FROM foods f
-            LEFT JOIN groups g ON f.group_id = g.id
-            LEFT JOIN food_allergen fa ON f.id = fa.food_id
-            LEFT JOIN allergens a ON fa.allergen_id = a.id
-            LEFT JOIN food_category fc ON f.id = fc.food_id
-            LEFT JOIN categories c ON fc.category_id = c.id
-            GROUP BY f.id, g.id
-            """
+        # Consulta SQL para buscar todos os alimentos com categorias, alergias e grupos
+        sql_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
+            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
+            g.image_url AS group_image_url,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
+            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
+            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
+            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
+            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
+            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
+            f.weight_in_grams, f.image_url, f.thumb_url,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
+        FROM foods f
+        LEFT JOIN groups g ON f.group_id = g.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        GROUP BY f.id, g.id
+        """
 
-            # Executa a consulta
-            result = execute_query_without_params(sql_query, fetch_all=True)
-            cache_foods = result
-            
-            # Processar os itens de comida (pode ser alguma lógica customizada)
-            foods_by_group = process_food_items(result)
-        else:
-            foods_by_group = process_food_items(cache_foods)
+        # Executa a consulta
+        result = execute_query_without_params(sql_query, fetch_all=True)
+        
+        # Processar os itens de comida (pode ser alguma lógica customizada)
+        foods_by_group = process_food_items(result)
 
         return jsonify(foods_by_group)
     
@@ -151,43 +145,37 @@ def get_exchanges_multiple():
 
 @products_blueprint.route('/v3/get_all_foods', methods=['GET'])
 def get_foods_v3():
-    global cache_foods
     try:
-        if cache_foods == []:
-            # Consulta SQL para buscar todos os alimentos com categorias, alergias e grupos, incluindo 'featured'
-            sql_query = """
-            SELECT 
-                f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-                g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
-                g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
-                g.image_url AS group_image_url,
-                f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-                f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-                f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-                f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-                f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-                f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-                f.weight_in_grams, f.image_url, f.thumb_url,
-                GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
-                GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
-            FROM foods f
-            LEFT JOIN groups g ON f.group_id = g.id
-            LEFT JOIN food_allergen fa ON f.id = fa.food_id
-            LEFT JOIN allergens a ON fa.allergen_id = a.id
-            LEFT JOIN food_category fc ON f.id = fc.food_id
-            LEFT JOIN categories c ON fc.category_id = c.id
-            GROUP BY f.id, g.id
-            """
+        # Consulta SQL para buscar todos os alimentos com categorias, alergias e grupos, incluindo 'featured'
+        sql_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
+            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
+            g.image_url AS group_image_url,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
+            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
+            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
+            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
+            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
+            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
+            f.weight_in_grams, f.image_url, f.thumb_url,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
+        FROM foods f
+        LEFT JOIN groups g ON f.group_id = g.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        GROUP BY f.id, g.id
+        """
 
-            # Executa a consulta
-            result = execute_query_without_params(sql_query, fetch_all=True)
-            cache_foods = result
-            
-            # Processar os itens de comida (pode ser alguma lógica customizada)
-            foods_by_group = process_food_items(result)
-        else:
-            print("")
-            foods_by_group = process_food_items(cache_foods)
+        # Executa a consulta
+        result = execute_query_without_params(sql_query, fetch_all=True)
+        
+        # Processar os itens de comida (pode ser alguma lógica customizada)
+        foods_by_group = process_food_items(result)
 
         return jsonify(foods_by_group)
     
@@ -287,77 +275,36 @@ def remove_duplicates_by_food_name_pt(response):
 # Funções de Consulta e Processamento de Alimentos
 
 def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
-    global cache_foods
     try:
-        # Verifica se o cache está vazio; se estiver, executa a consulta SQL
-        if not cache_foods:
-            sql_query = """
-            SELECT 
-                f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
-                g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
-                g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
-                g.image_url AS group_image_url, g.main_nutrient AS group_main_nutrient,
-                f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-                f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-                f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-                f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-                f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-                f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
-                f.weight_in_grams, f.image_url, f.thumb_url,
-                GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
-                GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
-            FROM foods f
-            LEFT JOIN groups g ON f.group_id = g.id
-            LEFT JOIN food_allergen fa ON f.id = fa.food_id
-            LEFT JOIN allergens a ON fa.allergen_id = a.id
-            LEFT JOIN food_category fc ON f.id = fc.food_id
-            LEFT JOIN categories c ON fc.category_id = c.id
-            GROUP BY f.id;
-            """
-            # Executa a consulta e atualiza o cache
-            cache_foods = execute_query_without_params(sql_query, fetch_all=True)
-            
-            print("nao usou cache")
-            # Filtra o cache para obter apenas os alimentos do grupo solicitado
-            try:
-                # Verifique se cache_foods é uma lista antes de iterar
-                if not isinstance(cache_foods, list):
-                    raise TypeError("Expected cache_foods to be a list.")
+        sql_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.portion_size_en, f.portion_size_es, f.portion_size_pt, f.group_id,
+            g.name_en AS group_name_en, g.name_pt AS group_name_pt, g.name_es AS group_name_es,
+            g.description_en AS group_description_en, g.description_pt AS group_description_pt, g.description_es AS group_description_es,
+            g.image_url AS group_image_url, g.main_nutrient AS group_main_nutrient,
+            f.calories, f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
+            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
+            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
+            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
+            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
+            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured, f.created_at, f.updated_at,
+            f.weight_in_grams, f.image_url, f.thumb_url,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
+        FROM foods f
+        LEFT JOIN groups g ON f.group_id = g.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        WHERE f.group_id = %s
+        GROUP BY f.id;
+        """
 
-                # Filtra os itens do grupo
-                all_foods_of_group = [food for food in cache_foods if food.get('group_id') == group_id]
+        # Executa a consulta
+        all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
 
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                print("Type of cache_foods:", type(cache_foods))
-                if isinstance(cache_foods, list):
-                    print("Contents of cache_foods:", cache_foods)
-                else:
-                    print("cache_foods is not iterable or not a list.")
-        else:
-            print("usou cache")
-            # Filtra o cache para obter apenas os alimentos do grupo solicitado
-            try:
-                # Verifique se cache_foods é uma lista antes de iterar
-                if not isinstance(cache_foods, list):
-                    raise TypeError("Expected cache_foods to be a list.")
-
-                # Filtra os itens do grupo
-                all_foods_of_group = [food for food in cache_foods if food.get('group_id') == group_id]
-
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                print("Type of cache_foods:", type(cache_foods))
-                if isinstance(cache_foods, list):
-                    print("Contents of cache_foods:", cache_foods)
-                else:
-                    print("cache_foods is not iterable or not a list.")
-
-
-        # Busca o alimento específico pelo ID
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
-        
-        # Encontra alimentos semelhantes
         dia_a_dia_foods = find_daily_similar_foods(
             all_foods_of_group=all_foods_of_group,
             actual_food=actual_food,
@@ -366,10 +313,9 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
             main_nutrient=actual_food["group_main_nutrient"]
         )
         return dia_a_dia_foods
-    
     except Exception as e:
         print(e)
-        return jsonify({"error": str(e)}), 50
+        return jsonify({"error": str(e)}), 500 
 
 
 def hangry(food_id, group_id, grams_or_calories, value_to_convert):
@@ -401,7 +347,6 @@ def hangry(food_id, group_id, grams_or_calories, value_to_convert):
 
         # Executa a consulta
         all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
-        print(all_foods_of_group)
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
         hangry_foods = find_hangry_similar_foods(
             all_foods_of_group=all_foods_of_group,
