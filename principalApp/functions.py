@@ -189,7 +189,6 @@ def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories,
                 try:
                     value = float(str(actual_food.get(property, 0) or 0.00).strip()) * update_factor
                     actual_food[property] = round(value, 2)  # Mantém como float
-                    print(f"'{property}' convertido e atualizado para: {actual_food[property]}")
                 except (ValueError, TypeError):
                     print(f"Erro ao converter o campo '{property}' em actual_food para float. Valor atual: {actual_food.get(property)}")
                     continue
@@ -206,7 +205,6 @@ def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories,
                 try:
                     value = float(str(actual_food.get(property, 0) or 0.00).strip()) * update_factor
                     actual_food[property] = round(value, 2)  # Mantém como float
-                    print(f"'{property}' convertido e atualizado para: {actual_food[property]}")
                 except (ValueError, TypeError):
                     print(f"Erro ao converter o campo '{property}' em actual_food para float. Valor atual: {actual_food.get(property)}")
                     continue
@@ -238,7 +236,6 @@ def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories,
                     current_value = str(food.get(property, 0) or 0.00).strip()
                     new_value = float(current_value) * update_multiplier
                     food[property] = round(new_value, 2)
-                    print(f"'{property}' em food atualizado para: {food[property]}")
                 except (ValueError, TypeError):
                     print(f"Erro ao converter o campo '{property}' em food para float. Valor atual: {food.get(property)}")
                     continue
