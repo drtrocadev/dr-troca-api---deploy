@@ -205,6 +205,7 @@ properties_to_update = [
 ]
 
 def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):
+    print("entrou")
     try:
         similar_foods = []
         update_factor = 0.0

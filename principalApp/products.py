@@ -312,14 +312,47 @@ def daily_changes(food_id, group_id, grams_or_calories, value_to_convert):
             LEFT JOIN allergens a ON fa.allergen_id = a.id
             LEFT JOIN food_category fc ON f.id = fc.food_id
             LEFT JOIN categories c ON fc.category_id = c.id
-            WHERE f.group_id = %s
             GROUP BY f.id;
             """
             # Executa a consulta e atualiza o cache
-            all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
-        else:
+            cache_foods = execute_query_without_params(sql_query, fetch_all=True)
+            
+            print("nao usou cache")
             # Filtra o cache para obter apenas os alimentos do grupo solicitado
-            all_foods_of_group = [food for food in cache_foods if food['group_id'] == group_id]
+            try:
+                # Verifique se cache_foods é uma lista antes de iterar
+                if not isinstance(cache_foods, list):
+                    raise TypeError("Expected cache_foods to be a list.")
+
+                # Filtra os itens do grupo
+                all_foods_of_group = [food for food in cache_foods if food.get('group_id') == group_id]
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                print("Type of cache_foods:", type(cache_foods))
+                if isinstance(cache_foods, list):
+                    print("Contents of cache_foods:", cache_foods)
+                else:
+                    print("cache_foods is not iterable or not a list.")
+        else:
+            print("usou cache")
+            # Filtra o cache para obter apenas os alimentos do grupo solicitado
+            try:
+                # Verifique se cache_foods é uma lista antes de iterar
+                if not isinstance(cache_foods, list):
+                    raise TypeError("Expected cache_foods to be a list.")
+
+                # Filtra os itens do grupo
+                all_foods_of_group = [food for food in cache_foods if food.get('group_id') == group_id]
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                print("Type of cache_foods:", type(cache_foods))
+                if isinstance(cache_foods, list):
+                    print("Contents of cache_foods:", cache_foods)
+                else:
+                    print("cache_foods is not iterable or not a list.")
+
 
         # Busca o alimento específico pelo ID
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
@@ -368,6 +401,7 @@ def hangry(food_id, group_id, grams_or_calories, value_to_convert):
 
         # Executa a consulta
         all_foods_of_group = execute_query_with_params(sql_query, (group_id,), fetch_all=True)
+        print(all_foods_of_group)
         actual_food = get_food_by_id(food_id=food_id, foods=all_foods_of_group)
         hangry_foods = find_hangry_similar_foods(
             all_foods_of_group=all_foods_of_group,
