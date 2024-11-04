@@ -112,7 +112,7 @@ def process_foods(change_type_id, food_id, group_id, grams_or_calories, value_to
     return process_foods_flat(foods_of_group), 200
 
 # Exemplo de rota utilizando process_foods
-@products_blueprint.route('/v1/get_exchanges', methods=['POST'])
+@products_blueprint.route('/v3/get_exchanges', methods=['POST'])
 def get_exchanges():
     data = request.json
     change_type_id = data.get('change_type_id')

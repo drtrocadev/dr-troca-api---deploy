@@ -11,14 +11,14 @@ def process_foods_flat(result):
         try:
             # Transforma food_name e portion_size em dicionários
             food_name = {
-                "en": item['food_name_en'],
-                "pt": item['food_name_pt'],
-                "es": item['food_name_es']
+                "en": str(item.get('food_name_en', "")),
+                "pt": str(item.get('food_name_pt', "")),
+                "es": str(item.get('food_name_es', ""))
             }
             portion_size = {
-                "en": item['portion_size_en'] or "",
-                "es": item['portion_size_es'] or "",
-                "pt": item['portion_size_pt'] or ""
+                "en": str(item.get('portion_size_en', "")),
+                "es": str(item.get('portion_size_es', "")),
+                "pt": str(item.get('portion_size_pt', ""))
             }
 
             # Garante que 'featured' seja um booleano
@@ -31,16 +31,39 @@ def process_foods_flat(result):
                 'group_image_url', 'food_name_en', 'food_name_pt', 'food_name_es',
                 'portion_size_en', 'portion_size_es', 'portion_size_pt'
             ]}
+
+            # Convertendo valores numéricos para string para corresponder ao modelo Swift
+            for key in [
+                'calories', 'carbohydrates', 'proteins', 'total_fats', 'saturated_fats', 'alcohol',
+                'caffeine', 'taurine', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats',
+                'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a',
+                'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 'vitamin_b3',
+                'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'weight_in_grams'
+            ]:
+                # Garante que o valor é uma string, mantendo dois dígitos decimais para consistência
+                food_item[key] = f"{float(item.get(key, 0.0)):.2f}"
+
+            # Incluindo food_name e portion_size formatados
             food_item['food_name'] = food_name
             food_item['portion_size'] = portion_size
-            food_item['allergens'] = item['allergens'].split('; ') if item['allergens'] else []
-            food_item['categories'] = item['categories'].split('; ') if item['categories'] else []
-            food_item['featured'] = featured  # Adiciona o campo 'featured' como booleano
 
-            # Garante que os campos 'taurine', 'caffeine' e 'thumb_url' estejam presentes, mesmo se estiverem ausentes
-            food_item['taurine'] = item.get('taurine', "")  # Garantindo que 'taurine' exista
-            food_item['caffeine'] = item.get('caffeine', "")  # Garantindo que 'caffeine' exista
-            food_item['thumb_url'] = item.get('thumb_url', "")  # Garantindo que 'thumb_url' exista
+            # Dividindo allergens e categories em listas, tratando valores ausentes como listas vazias
+            food_item['allergens'] = item.get('allergens', "").split('; ') if item.get('allergens') else []
+            food_item['categories'] = item.get('categories', "").split('; ') if item.get('categories') else []
+
+            # Garantindo que 'featured' esteja presente como booleano
+            food_item['featured'] = featured
+
+            # Garantindo que 'thumb_url' e 'image_url' estejam presentes como strings
+            food_item['thumb_url'] = item.get('thumb_url', "")
+            food_item['image_url'] = item.get('image_url', "")
+            
+            # Inclui o campo group_main_nutrient como string
+            food_item['group_main_nutrient'] = str(item.get('group_main_nutrient', ""))
+
+            # Inclui data de criação e atualização como strings
+            food_item['created_at'] = str(item.get('created_at', ""))
+            food_item['updated_at'] = str(item.get('updated_at', ""))
 
             foods.append(food_item)
 
@@ -49,63 +72,6 @@ def process_foods_flat(result):
             print("Item data:", item)
 
     return foods
-
-
-def process_foods_flat_v2(result):
-    foods = []
-    for item in result:
-        # Extrai 'food_name' e 'portion_size' diretamente como dicionários
-        food_name = item.get('food_name', {})
-        portion_size = item.get('portion_size', {})
-    
-        # Cria campos separados para cada idioma
-        food_name_en = food_name.get('en', "")
-        food_name_pt = food_name.get('pt', "")
-        food_name_es = food_name.get('es', "")
-    
-        portion_size_en = portion_size.get('en', "")
-        portion_size_pt = portion_size.get('pt', "")
-        portion_size_es = portion_size.get('es', "")
-    
-        # Garante que 'featured' seja um booleano
-        featured = bool(item.get('featured', False))
-    
-        # Define as chaves a serem excluídas
-        excluded_keys = [
-            'group_name_en', 'group_name_pt', 'group_name_es',
-            'group_description_en', 'group_description_pt', 'group_description_es',
-            'group_image_url', 
-            'food_name', 'portion_size'  # Exclui os dicionários de 'food_name' e 'portion_size'
-        ]
-        
-        # Prepara o item com as informações do alimento, excluindo os campos não necessários
-        food_item = {key: value for key, value in item.items() if key not in excluded_keys}
-    
-        # Adiciona os campos separados de 'food_name' e 'portion_size'
-        food_item['food_name_en'] = food_name_en
-        food_item['food_name_pt'] = food_name_pt
-        food_item['food_name_es'] = food_name_es
-    
-        food_item['portion_size_en'] = portion_size_en
-        food_item['portion_size_pt'] = portion_size_pt
-        food_item['portion_size_es'] = portion_size_es
-        
-        # 'allergens' e 'categories' já são listas, mantemos assim
-        food_item['allergens'] = item.get('allergens', [])
-        food_item['categories'] = item.get('categories', [])
-        
-        # Atualiza o campo 'featured'
-        food_item['featured'] = featured
-    
-        # Garante que os campos 'taurine', 'caffeine' e 'thumb_url' estejam presentes
-        food_item['taurine'] = item.get('taurine', "")  # Garantindo que 'taurine' exista
-        food_item['caffeine'] = item.get('caffeine', "")  # Garantindo que 'caffeine' exista
-        food_item['thumb_url'] = item.get('thumb_url', "")  # Garantindo que 'thumb_url' exista
-    
-        foods.append(food_item)
-    
-    return foods
-
 
 def process_food_items(result):
     # Inicializa um dicionário para agrupar os alimentos por group_id
