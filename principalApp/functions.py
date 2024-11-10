@@ -33,6 +33,10 @@ def process_foods_flat(result):
         food_item['allergens'] = item['allergens'].split('; ') if item['allergens'] else []
         food_item['categories'] = item['categories'].split('; ') if item['categories'] else []
         food_item['featured'] = featured  # Adiciona o campo 'featured' como booleano
+        food_item['eicosapentaenoic_acid'] = item.get('eicosapentaenoic_acid', "")
+        food_item['docosahexaenoic_acid'] = item.get('docosahexaenoic_acid', "")
+        food_item['creatine_mg'] = item.get('creatine_mg', "")
+
 
         # Garante que os campos 'taurine', 'caffeine' e 'thumb_url' estejam presentes, mesmo se estiverem ausentes
         food_item['taurine'] = item.get('taurine', "")  # Garantindo que 'taurine' exista
@@ -97,6 +101,9 @@ def process_food_items(result):
         food_item['taurine'] = item.get('taurine', "")
         food_item['caffeine'] = item.get('caffeine', "")
         food_item['thumb_url'] = item.get('thumb_url', "")
+        food_item['eicosapentaenoic_acid'] = item.get('eicosapentaenoic_acid', "")
+        food_item['docosahexaenoic_acid'] = item.get('docosahexaenoic_acid', "")
+        food_item['creatine_mg'] = item.get('creatine_mg', "")
 
         foods_by_group[group_id]["foods"].append(food_item)
 
@@ -121,7 +128,8 @@ nutrients = [
     'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc',
     'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
     'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6',
-    'vitamin_b9', 'vitamin_b12', 'caffeine', 'taurine'
+    'vitamin_b9', 'vitamin_b12', 'caffeine', 'taurine',
+    'eicosapentaenoic_acid', 'docosahexaenoic_acid', 'creatine_mg'
 ]
 
 properties_to_update = [
@@ -131,7 +139,7 @@ properties_to_update = [
     'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
     'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6',
     'vitamin_b9', 'vitamin_b12', 'calories', 'weight_in_grams',
-    'caffeine', 'taurine'
+    'caffeine', 'taurine', 'eicosapentaenoic_acid', 'docosahexaenoic_acid', 'creatine_mg'
 ]
 
 def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):

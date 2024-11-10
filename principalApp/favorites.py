@@ -68,6 +68,7 @@ def get_favorite_foods_v1():
             f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
             f.created_at, f.updated_at, f.weight_in_grams, 
             f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+            f.notes, f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM favorites fav
@@ -143,6 +144,7 @@ def add_favorite_food_v1():
                         f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
                         f.created_at, f.updated_at, f.weight_in_grams, 
                         f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+                        f.notes, f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
                         GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
                         GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
                     FROM foods f
@@ -270,6 +272,11 @@ def list_favorite_exchanges_v1():
             f.caffeine,
             f.taurine,
             f.featured,
+            f.notes, 
+            f.eicosapentaenoic_acid,
+            f.docosahexaenoic_acid,
+            f.creatine_mg,
+            f.purchase_link,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM exchanges_favorite ef
@@ -459,6 +466,11 @@ def list_favorite_exchanges_v2():
             f.caffeine,
             f.taurine,
             f.featured,
+            f.notes, 
+            f.eicosapentaenoic_acid,
+            f.docosahexaenoic_acid,
+            f.creatine_mg,
+            f.purchase_link,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM exchanges_favorite ef
@@ -714,6 +726,7 @@ def get_foods_from_favorite_meal_v1():
             f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
             f.created_at, f.updated_at, f.weight_in_grams, 
             f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+            f.notes, f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
@@ -789,6 +802,7 @@ def get_foods_from_favorite_meal_v2():
             f.vitamin_b3, f.vitamin_b6, f.vitamin_b9, f.vitamin_b12, 
             f.created_at, f.updated_at, f.weight_in_grams, 
             f.image_url, f.thumb_url, f.caffeine, f.taurine, f.featured,
+            f.notes, f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR '; ') AS allergens,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR '; ') AS categories
         FROM foods f
