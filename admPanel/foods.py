@@ -12,48 +12,6 @@ from admPanel.functions import generate_and_upload_thumbnail
 from admPanel.functions import upload_category_cover_and_get_url
 
 adm_foods_blueprint = Blueprint('adm_foods_blueprint', __name__)
-
-@adm_foods_blueprint.route('/adm/v2/get_all_foods', methods=['GET'])
-@jwt_required()
-def adm_get_foods_v2():
-    
-    try:      
-        # SQL Query para buscar todos os alimentos com suas categorias e alergias relacionadas
-        sql_query = """
-        SELECT 
-            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.group_id, f.calories,
-            f.portion_size_en, f.portion_size_es, f.portion_size_pt,
-            f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats, 
-            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats, 
-            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc, 
-            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e, 
-            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6, 
-            f.vitamin_b9, f.vitamin_b12, f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
-            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') AS categories,
-            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR ', ') AS allergens
-        FROM foods f
-        LEFT JOIN food_category fc ON f.id = fc.food_id
-        LEFT JOIN categories c ON fc.category_id = c.id
-        LEFT JOIN food_allergen fa ON f.id = fa.food_id
-        LEFT JOIN allergens a ON fa.allergen_id = a.id
-        GROUP BY f.id
-        """
-
-        # Chama a função execute_query para buscar todos os itens com as modificações necessárias
-        result = execute_query_without_params(sql_query, fetch_all=True)
-        
-        # Converte as strings 'categories' e 'allergens' em listas
-        for item in result:
-            item['categories'] = item['categories'].split(', ') if item['categories'] else []
-            item['allergens'] = item['allergens'].split(', ') if item['allergens'] else []
-
-        return jsonify(result)
-
-    except Exception as e:
-        # Em caso de erro, retorna uma mensagem de erro
-        print(f"Erro: {e}")
-        return jsonify({"error": str(e)}), 500
     
 @adm_foods_blueprint.route('/adm/v1/delete_food/<int:food_id>', methods=['DELETE'])
 @jwt_required()
@@ -92,248 +50,7 @@ def adm_delete_food(food_id):
         """
 
         execute_query(sql_insert_log, log_data)
-  
-@adm_foods_blueprint.route('/adm/v4/add_food', methods=['POST'])
-@jwt_required()
-def adm_add_food_v4():
-    identity = get_jwt_identity()
-    conn = None
-    expected_params = {}
-    food_id = 0
-    image_url = ""
-    conn = None
-    try:
-        data = request.json
-        expected_params = [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url', 'weight_in_grams',
-            'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats', 'saturated_fats', 'monounsaturated_fats',
-            'polyunsaturated_fats', 'trans_fats', 'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc',
-            'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2',
-            'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12'
-        ]
-        missing_params = [param for param in expected_params if param not in data]
 
-        if missing_params:
-            return jsonify({
-                "error": "Missing parameters",
-                "missing_parameters": missing_params
-            }), 400
-
-        conn = db_connection_pool.get_connection()  # Substitua pela sua função real de conexão ao banco
-        conn.autocommit = False  # Desativa o commit automático
-        cursor = conn.cursor()
-
-        # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
-        if data['image_url'].startswith("http"):
-            data['image_url'] = data['image_url']
-            image_url = data['image_url']
-        else:
-            image_url = upload_image_and_get_url(data['image_url'])
-            data['image_url'] = image_url
-
-        sql_insert_food = """
-        INSERT INTO foods (food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats, 
-        saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium, magnesium, 
-        iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2, vitamin_b3, 
-        vitamin_b6, vitamin_b9, vitamin_b12) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-
-        # Parâmetros para a inserção do alimento
-        params = (
-            data['food_name_en'], data['food_name_pt'], data['food_name_es'],
-            data['portion_size_en'], data['portion_size_es'], data['portion_size_pt'],
-            data['group_id'], image_url, data['weight_in_grams'],
-            data['calories'], data['carbohydrates'], data['proteins'], data ['alcohol'],
-            data['total_fats'], data['saturated_fats'], data['monounsaturated_fats'], 
-            data['polyunsaturated_fats'], data['trans_fats'], data['fibers'], data['calcium'], data['sodium'], 
-            data['magnesium'], data['iron'], data['zinc'], data['potassium'], data['vitamin_a'], data['vitamin_c'], 
-            data['vitamin_d'], data['vitamin_e'], data['vitamin_b1'], data['vitamin_b2'], data['vitamin_b3'], 
-            data['vitamin_b6'], data['vitamin_b9'], data['vitamin_b12']
-        )
-        
-        cursor.execute(sql_insert_food, params)
-        food_id = cursor.lastrowid
-
-        if 'categories' in data:
-            for category in data['categories']:
-                category_id = find_category(category)
-                if category_id:
-                    insert_into_food_category(cursor, food_id, category_id)
-
-        if 'allergens' in data:
-            for allergen in data['allergens']:
-                allergen_id = find_allergen(allergen)
-                if allergen_id:
-                    insert_into_food_allergen(cursor, food_id, allergen_id)
-
-        conn.commit()  # Commita a transação se tudo ocorrer bem
-
-        return jsonify({"success": True, "message": "Food added successfully", "food_id": food_id})
-    except Exception as e:
-        if conn:
-            conn.rollback()  # Desfaz todas as operações se ocorrer um err
-        print(e)
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
-        if cursor:
-            cursor.close()
-
-        # Crie um dicionário para armazenar os parâmetros esperados e adicionar o food_id
-        log_data = {}
-        log_data['food_id'] = f'{food_id}'
-
-        # Adicione todos os parâmetros que estavam originalmente em expected_params
-        for param in [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt',
-            'group_id', 'image_url', 'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats',
-            'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 'fibers', 'calcium', 'sodium',
-            'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1',
-            'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12'
-        ]:
-            log_data[param] = data.get(param)
-
-        log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
-        log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
-        log_data['changed_by'] = identity  # Usando a variável identity para identificar quem fez a alteração
-        log_data['log_type'] = "CREATE"  # Definindo o tipo de log como "CREATE"
-        log_data['image_url'] = image_url
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_message = ", ".join([f"{key}={value}" for key, value in log_data.items()])
-        print(f"{identity} criou um item as [{timestamp}]. Created fields: {log_message}")
-
-        # Construindo a query de inserção atualizada
-        sql_insert_log = """
-        INSERT INTO food_update_logs (
-            food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
-            group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
-            saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
-            magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
-            vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens, changed_by, log_type
-        ) VALUES (%(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
-                %(group_id)s, %(image_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
-                %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
-                %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
-                %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
-                %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(categories)s, %(allergens)s,
-                %(changed_by)s, %(log_type)s)
-        """
-
-        execute_query(sql_insert_log, log_data)
-
-
-@adm_foods_blueprint.route('/adm/v2/edit_food', methods=['POST'])
-@jwt_required()
-def adm_edit_food_v2():
-    identity = get_jwt_identity()
-    updated_data = {}
-    try:
-        data = request.json
-
-        # Certifica-se de que o ID do alimento está presente
-        if 'id' not in data:
-            return jsonify({"error": "Missing food ID"}), 400
-
-        # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
-        if 'image_url' in data:
-            if data['image_url'].startswith("http"):
-                data['image_url'] = data['image_url']
-            else:
-                image_url = upload_image_and_get_url(data['image_url'])
-                data['image_url'] = image_url
-            updated_data['image_url'] = data['image_url']  # Armazena a atualização
-
-        # Campos que podem ser atualizados
-        updatable_fields = [
-            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt', 'group_id', 'image_url',
-            'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats', 
-            'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 
-            'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 
-            'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 
-            'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12'
-        ]
-
-        set_clause = ', '.join([f"{field} = %s" for field in updatable_fields if field in data])
-        params = [data[field] for field in updatable_fields if field in data]
-        updated_data.update({field: data[field] for field in updatable_fields if field in data})
-
-        if not params:
-            return jsonify({"error": "No updatable fields provided"}), 400
-
-        params.append(data['id'])  # Adiciona o ID do produto ao final dos parâmetros para a cláusula WHERE
-
-        # Consulta SQL para atualizar o produto
-        sql_update_food = f"UPDATE foods SET {set_clause} WHERE id = %s"
-
-        # Executa a atualização
-        execute_query(sql_update_food, params)
-
-        delete_existing_allergens(data['id'])
-        delete_existing_categories(data['id'])
-
-        # Associa apenas com categorias existentes
-        if 'categories' in data:
-            category_ids = [find_category(category) for category in data['categories'] if find_category(category)]
-            if category_ids:  # Só associa se existirem categorias válidas
-                update_food_categories(data['id'], category_ids)
-            updated_data['categories'] = category_ids
-
-        # Associa apenas com alergênicos existentes
-        if 'allergens' in data:
-            allergen_ids = [find_allergen(allergen) for allergen in data['allergens'] if find_allergen(allergen)]
-            if allergen_ids:  # Só associa se existirem alergênicos válidos
-                update_food_allergens(data['id'], allergen_ids)
-            updated_data['allergens'] = allergen_ids
-
-        return jsonify({"success": True, "message": "Food updated successfully"})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    finally:
-        if updated_data:
-            # Garante que o ID do alimento esteja incluído nos dados a serem logados
-            updated_data['id'] = data.get('id')
-
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_message = ", ".join([f"{key}={value}" for key, value in updated_data.items()])
-            print(f"{identity} editou um item as [{timestamp}]. Updated fields: {log_message}")
-
-            log_data = {field: updated_data.get(field, None) for field in updatable_fields}
-            log_data['id'] = data.get('id')  # Certifica-se de que o 'id' está presente
-            log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
-            log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
-            log_data['changed_by'] = identity  # Usando a variável identity para identificar quem fez a alteração
-            log_data['log_type'] = "EDIT"
-
-            # Construindo a query de inserção atualizada
-            sql_insert_log = """
-                INSERT INTO food_update_logs (
-                    food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt, group_id, image_url,
-                    weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
-                    saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats,
-                    fibers, calcium, sodium, magnesium, iron, zinc, potassium,
-                    vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
-                    vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, categories, allergens,
-                    changed_by, log_type
-                ) VALUES (
-                    %(id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s, %(group_id)s, %(image_url)s,
-                    %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
-                    %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
-                    %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
-                    %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
-                    %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(categories)s, %(allergens)s,
-                    %(changed_by)s, %(log_type)s
-                )
-            """
-
-            execute_query(sql_insert_log, log_data)
-
-    
 def find_category(category_name):
     # Dicionário estático com os mapeamentos de nome de categoria para ID
     categories = {
@@ -480,7 +197,6 @@ def add_group():
 
     return jsonify({'message': 'Data saved successfully', 'group_id': group_id}), 201
 
-
 @adm_foods_blueprint.route('/adm/v1/delete_group/<int:id>', methods=['DELETE'])
 def delete_item(id):
     # Query SQL para deletar um item pelo id
@@ -562,7 +278,8 @@ def adm_get_foods_v3():
             f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6,
             f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured,
             f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url,
+            f.weight_in_grams, f.image_url, f.notes,
+            f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
             GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') AS categories,
             GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR ', ') AS allergens
         FROM foods f
@@ -879,3 +596,207 @@ def adm_add_food_v5():
         """
 
         execute_query(sql_insert_log, log_data)
+
+
+# NOVOS CAMPOS O MODELO DE FOOD
+
+@adm_foods_blueprint.route('/adm/v6/add_food', methods=['POST'])
+@jwt_required()
+def adm_add_food_v6():
+    identity = get_jwt_identity()
+    conn = None
+    cursor = None
+    food_id = 0
+    image_url = ""
+    thumb_url = ""
+
+    try:
+        data = request.json
+        expected_params = [
+            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt',
+            'group_id', 'image_url', 'weight_in_grams', 'calories', 'carbohydrates', 'proteins', 'alcohol', 'total_fats',
+            'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 'fibers', 'calcium', 'sodium',
+            'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1',
+            'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'taurine', 'caffeine', 'featured',
+            'notes', 'eicosapentaenoic_acid', 'docosahexaenoic_acid', 'creatine_mg', 'purchase_link'
+        ]
+        missing_params = [param for param in expected_params if param not in data]
+
+        if missing_params:
+            return jsonify({"error": "Missing parameters", "missing_parameters": missing_params}), 400
+
+        featured_value = data.get('featured', False)
+        featured = 1 if isinstance(featured_value, bool) and featured_value else 0
+
+        if data['image_url'].startswith("http"):
+            image_url = data['image_url']
+            thumb_url = data.get('thumb_url', '')
+        else:
+            image_url = upload_image_and_get_url(data['image_url'])
+            thumb_url = generate_and_upload_thumbnail(image_url)
+
+        conn = db_connection_pool.get_connection()
+        conn.autocommit = False
+        cursor = conn.cursor()
+
+        sql_insert_food = """
+        INSERT INTO foods (
+            food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
+            group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+            saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
+            magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
+            vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
+            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        """
+        params = (
+            data['food_name_en'], data['food_name_pt'], data['food_name_es'], data['portion_size_en'], data['portion_size_es'],
+            data['portion_size_pt'], data['group_id'], image_url, data['weight_in_grams'], data['calories'],
+            data['carbohydrates'], data['proteins'], data['alcohol'], data['total_fats'], data['saturated_fats'],
+            data['monounsaturated_fats'], data['polyunsaturated_fats'], data['trans_fats'], data['fibers'], data['calcium'],
+            data['sodium'], data['magnesium'], data['iron'], data['zinc'], data['potassium'], data['vitamin_a'],
+            data['vitamin_c'], data['vitamin_d'], data['vitamin_e'], data['vitamin_b1'], data['vitamin_b2'],
+            data['vitamin_b3'], data['vitamin_b6'], data['vitamin_b9'], data['vitamin_b12'], data['caffeine'],
+            data['taurine'], featured, thumb_url, data['notes'], data['eicosapentaenoic_acid'],
+            data['docosahexaenoic_acid'], data['creatine_mg'], data['purchase_link']
+        )
+        cursor.execute(sql_insert_food, params)
+        food_id = cursor.lastrowid
+
+        if 'categories' in data:
+            for category in data['categories']:
+                category_id = find_category(category)
+                if category_id:
+                    insert_into_food_category(cursor, food_id, category_id)
+
+        if 'allergens' in data:
+            for allergen in data['allergens']:
+                allergen_id = find_allergen(allergen)
+                if allergen_id:
+                    insert_into_food_allergen(cursor, food_id, allergen_id)
+
+        conn.commit()
+
+        return jsonify({"success": True, "message": "Food added successfully", "food_id": food_id})
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+        log_data = {param: data.get(param) for param in expected_params}
+        log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
+        log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
+        log_data['changed_by'] = identity
+        log_data['log_type'] = "CREATE"
+        log_data['food_id'] = food_id
+
+        sql_insert_log = """
+        INSERT INTO food_update_logs (
+            food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
+            group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+            saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
+            magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
+            vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
+            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
+            changed_by, log_type
+        ) VALUES (
+            %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
+            %(group_id)s, %(image_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
+            %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
+            %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
+            %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
+            %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(caffeine)s, %(taurine)s, %(featured)s,
+            %(thumb_url)s, %(notes)s, %(eicosapentaenoic_acid)s, %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s,
+            %(categories)s, %(allergens)s, %(changed_by)s, %(log_type)s
+        )
+        """
+        execute_query(sql_insert_log, log_data)
+
+@adm_foods_blueprint.route('/adm/v6/edit_food', methods=['POST'])
+@jwt_required()
+def adm_edit_food_v6():
+    identity = get_jwt_identity()
+    updated_data = {}
+
+    try:
+        data = request.json
+
+        if 'id' not in data:
+            return jsonify({"error": "Missing food ID"}), 400
+
+        updatable_fields = [
+            'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt',
+            'group_id', 'image_url', 'thumb_url', 'weight_in_grams', 'calories', 'carbohydrates', 'proteins',
+            'alcohol', 'total_fats', 'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats',
+            'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c',
+            'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9',
+            'vitamin_b12', 'caffeine', 'taurine', 'featured', 'notes', 'eicosapentaenoic_acid',
+            'docosahexaenoic_acid', 'creatine_mg', 'purchase_link'
+        ]
+
+        if 'featured' in data:
+            data['featured'] = 1 if data['featured'] else 0
+
+        set_clause = ', '.join([f"{field} = %s" for field in updatable_fields if field in data])
+        params = [data[field] for field in updatable_fields if field in data]
+        params.append(data['id'])
+
+        sql_update_food = f"UPDATE foods SET {set_clause} WHERE id = %s"
+        execute_query(sql_update_food, params)
+
+        delete_existing_allergens(data['id'])
+        delete_existing_categories(data['id'])
+
+        if 'categories' in data:
+            category_ids = [find_category(category) for category in data['categories'] if find_category(category)]
+            if category_ids:
+                update_food_categories(data['id'], category_ids)
+
+        if 'allergens' in data:
+            allergen_ids = [find_allergen(allergen) for allergen in data['allergens'] if find_allergen(allergen)]
+            if allergen_ids:
+                update_food_allergens(data['id'], allergen_ids)
+
+        return jsonify({"success": True, "message": "Food updated successfully"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        log_data = {field: data.get(field) for field in updatable_fields}
+        log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
+        log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
+        log_data['changed_by'] = identity
+        log_data['log_type'] = "EDIT"
+        log_data['food_id'] = data.get('id')
+
+        sql_insert_log = """
+        INSERT INTO food_update_logs (
+            food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
+            group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+            saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
+            magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
+            vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
+            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
+            changed_by, log_type
+        ) VALUES (
+            %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
+            %(group_id)s, %(image_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
+            %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
+            %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
+            %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
+            %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(caffeine)s, %(taurine)s, %(featured)s,
+            %(thumb_url)s, %(notes)s, %(eicosapentaenoic_acid)s, %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s,
+            %(categories)s, %(allergens)s, %(changed_by)s, %(log_type)s
+        )
+        """
+        execute_query(sql_insert_log, log_data)
+
