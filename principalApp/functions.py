@@ -77,9 +77,9 @@ def process_food_items(result):
                     "es": item['group_description_es']
                 },
                 "notes": {
-                    "en": item['notes_en'],
-                    "pt": item['notes_pt'],
-                    "es": item['notes_es']
+                    "en": item['notes_en'] or "",
+                    "pt": item['notes_pt'] or "",
+                    "es": item['notes_es'] or ""
                 },
                 "group_image_url": item['group_image_url'],
                 "foods": []
