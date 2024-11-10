@@ -18,7 +18,8 @@ def process_food_item_dynamic(result):
     # Defina os prefixos dos campos que precisam ser aninhados
     language_fields = {
         'food_name': ['food_name_en', 'food_name_pt', 'food_name_es'],
-        'portion_size': ['portion_size_en', 'portion_size_pt', 'portion_size_es']
+        'portion_size': ['portion_size_en', 'portion_size_pt', 'portion_size_es'],
+        'notes': ['notes_en', 'notes_pt', 'notes_es']
     }
 
     for key, fields in language_fields.items():
