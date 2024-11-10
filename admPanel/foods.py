@@ -745,9 +745,14 @@ def adm_edit_food_v6():
         if 'featured' in data:
             data['featured'] = 1 if data['featured'] else 0
 
+        # Monta a cláusula SET para os campos atualizáveis e armazena os valores no updated_data
         set_clause = ', '.join([f"{field} = %s" for field in updatable_fields if field in data])
         params = [data[field] for field in updatable_fields if field in data]
+        updated_data = {field: data[field] for field in updatable_fields if field in data}
         params.append(data['id'])
+
+        if not updated_data:
+            return jsonify({"error": "No fields provided to update"}), 400
 
         sql_update_food = f"UPDATE foods SET {set_clause} WHERE id = %s"
         execute_query(sql_update_food, params)
@@ -759,11 +764,13 @@ def adm_edit_food_v6():
             category_ids = [find_category(category) for category in data['categories'] if find_category(category)]
             if category_ids:
                 update_food_categories(data['id'], category_ids)
+            updated_data['categories'] = data['categories']
 
         if 'allergens' in data:
             allergen_ids = [find_allergen(allergen) for allergen in data['allergens'] if find_allergen(allergen)]
             if allergen_ids:
                 update_food_allergens(data['id'], allergen_ids)
+            updated_data['allergens'] = data['allergens']
 
         return jsonify({"success": True, "message": "Food updated successfully"})
 
@@ -771,32 +778,36 @@ def adm_edit_food_v6():
         return jsonify({"error": str(e)}), 500
 
     finally:
-        log_data = {field: data.get(field) for field in updatable_fields}
-        log_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
-        log_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
-        log_data['changed_by'] = identity
-        log_data['log_type'] = "EDIT"
-        log_data['food_id'] = data.get('id')
+        if updated_data:
+            # Prepara os dados para o log
+            updated_data['food_id'] = data.get('id')
+            updated_data['changed_by'] = identity
+            updated_data['log_type'] = "EDIT"
 
-        sql_insert_log = """
-        INSERT INTO food_update_logs (
-            food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
-            group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
-            saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
-            magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
-            vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
-            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
-            changed_by, log_type
-        ) VALUES (
-            %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
-            %(group_id)s, %(image_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s, %(proteins)s, %(alcohol)s, %(total_fats)s,
-            %(saturated_fats)s, %(monounsaturated_fats)s, %(polyunsaturated_fats)s, %(trans_fats)s,
-            %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
-            %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
-            %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(caffeine)s, %(taurine)s, %(featured)s,
-            %(thumb_url)s, %(notes)s, %(eicosapentaenoic_acid)s, %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s,
-            %(categories)s, %(allergens)s, %(changed_by)s, %(log_type)s
-        )
-        """
-        execute_query(sql_insert_log, log_data)
+            # Garante que categorias e alérgenos sejam strings separadas por vírgulas
+            updated_data['categories'] = ','.join(data.get('categories', [])) if 'categories' in data else None
+            updated_data['allergens'] = ','.join(data.get('allergens', [])) if 'allergens' in data else None
 
+            # Query para salvar o log
+            sql_insert_log = """
+            INSERT INTO food_update_logs (
+                food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
+                group_id, image_url, thumb_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+                saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
+                magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
+                vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, notes,
+                eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
+                changed_by, log_type
+            ) VALUES (
+                %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
+                %(group_id)s, %(image_url)s, %(thumb_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s,
+                %(proteins)s, %(alcohol)s, %(total_fats)s, %(saturated_fats)s, %(monounsaturated_fats)s,
+                %(polyunsaturated_fats)s, %(trans_fats)s, %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s,
+                %(iron)s, %(zinc)s, %(potassium)s, %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s,
+                %(vitamin_b1)s, %(vitamin_b2)s, %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s,
+                %(caffeine)s, %(taurine)s, %(featured)s, %(notes)s, %(eicosapentaenoic_acid)s,
+                %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s, %(categories)s, %(allergens)s,
+                %(changed_by)s, %(log_type)s
+            )
+            """
+            execute_query(sql_insert_log, updated_data)
