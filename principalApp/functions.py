@@ -20,6 +20,12 @@ def process_foods_flat(result):
             "pt": item['portion_size_pt'] or ""
         }
 
+        notes = {
+            "en": item['notes_en'] or "",
+            "pt": item['notes_pt'] or "",
+            "es": item['notes_es'] or ""
+        }
+
         # Garante que 'featured' seja um booleano
         featured = bool(item.get('featured', False))
 
@@ -30,6 +36,7 @@ def process_foods_flat(result):
                                                                     'portion_size_en', 'portion_size_es', 'portion_size_pt']}
         food_item['food_name'] = food_name
         food_item['portion_size'] = portion_size
+        food_item['notes'] = notes
         food_item['allergens'] = item['allergens'].split('; ') if item['allergens'] else []
         food_item['categories'] = item['categories'].split('; ') if item['categories'] else []
         food_item['featured'] = featured  # Adiciona o campo 'featured' como booleano
@@ -68,6 +75,11 @@ def process_food_items(result):
                     "en": item['group_description_en'],
                     "pt": item['group_description_pt'],
                     "es": item['group_description_es']
+                },
+                "notes": {
+                    "en": item['notes_en'],
+                    "pt": item['notes_pt'],
+                    "es": item['notes_es']
                 },
                 "group_image_url": item['group_image_url'],
                 "foods": []
