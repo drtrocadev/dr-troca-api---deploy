@@ -263,66 +263,6 @@ def edit_item(id):
 
 # NOVAS ROTAS COM VERSÕES INCREMENTADAS E MODIFICAÇÕES
 
-@adm_foods_blueprint.route('/adm/v3/get_all_foods', methods=['GET'])
-@jwt_required()
-def adm_get_foods_v3():
-    try:
-        sql_query = """
-        SELECT 
-            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.group_id, f.calories,
-            f.portion_size_en, f.portion_size_es, f.portion_size_pt,
-            f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats,
-            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats,
-            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc,
-            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e,
-            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6,
-            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured,
-            f.created_at, f.updated_at,
-            f.weight_in_grams, f.image_url, f.notes,
-            f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
-            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') AS categories,
-            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR ', ') AS allergens
-        FROM foods f
-        LEFT JOIN food_category fc ON f.id = fc.food_id
-        LEFT JOIN categories c ON fc.category_id = c.id
-        LEFT JOIN food_allergen fa ON f.id = fa.food_id
-        LEFT JOIN allergens a ON fa.allergen_id = a.id
-        GROUP BY f.id
-        """
-
-        result = execute_query_without_params(sql_query, fetch_all=True)
-        
-        # Processar categorias e alergênicos
-        for item in result:
-            item['categories'] = item['categories'].split(', ') if item['categories'] else []
-            item['allergens'] = item['allergens'].split(', ') if item['allergens'] else []
-
-        # Dicionário para rastrear o menor ID para cada food_name_pt
-        first_food_ids = {}
-        for item in result:
-            food_name_pt = item.get('food_name_pt')
-            current_id = item.get('id')
-            if food_name_pt:
-                if food_name_pt not in first_food_ids:
-                    first_food_ids[food_name_pt] = current_id
-                else:
-                    if current_id < first_food_ids[food_name_pt]:
-                        first_food_ids[food_name_pt] = current_id
-
-        # Adicionar o atributo 'is_first' a cada item
-        for item in result:
-            food_name_pt = item.get('food_name_pt')
-            if food_name_pt and item.get('id') == first_food_ids.get(food_name_pt):
-                item['is_first'] = True
-            else:
-                item['is_first'] = False
-
-        return jsonify(result)
-
-    except Exception as e:
-        print(f"Erro: {e}")
-        return jsonify({"error": str(e)}), 500
-
 @adm_foods_blueprint.route('/adm/v3/edit_food', methods=['POST'])
 @jwt_required()
 def adm_edit_food_v3():
@@ -600,6 +540,66 @@ def adm_add_food_v5():
 
 # NOVOS CAMPOS O MODELO DE FOOD
 
+@adm_foods_blueprint.route('/adm/v3/get_all_foods', methods=['GET'])
+@jwt_required()
+def adm_get_foods_v3():
+    try:
+        sql_query = """
+        SELECT 
+            f.id, f.food_name_en, f.food_name_pt, f.food_name_es, f.group_id, f.calories,
+            f.portion_size_en, f.portion_size_es, f.portion_size_pt,
+            f.carbohydrates, f.proteins, f.alcohol, f.total_fats, f.saturated_fats,
+            f.monounsaturated_fats, f.polyunsaturated_fats, f.trans_fats,
+            f.fibers, f.calcium, f.sodium, f.magnesium, f.iron, f.zinc,
+            f.potassium, f.vitamin_a, f.vitamin_c, f.vitamin_d, f.vitamin_e,
+            f.vitamin_b1, f.vitamin_b2, f.vitamin_b3, f.vitamin_b6,
+            f.vitamin_b9, f.vitamin_b12, f.caffeine, f.taurine, f.featured,
+            f.created_at, f.updated_at,
+            f.weight_in_grams, f.image_url, f.notes_pt, f.notes_en, f.notes_es,
+            f.eicosapentaenoic_acid, f.docosahexaenoic_acid, f.creatine_mg, f.purchase_link,
+            GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') AS categories,
+            GROUP_CONCAT(DISTINCT a.allergen_name SEPARATOR ', ') AS allergens
+        FROM foods f
+        LEFT JOIN food_category fc ON f.id = fc.food_id
+        LEFT JOIN categories c ON fc.category_id = c.id
+        LEFT JOIN food_allergen fa ON f.id = fa.food_id
+        LEFT JOIN allergens a ON fa.allergen_id = a.id
+        GROUP BY f.id
+        """
+
+        result = execute_query_without_params(sql_query, fetch_all=True)
+        
+        # Processar categorias e alergênicos
+        for item in result:
+            item['categories'] = item['categories'].split(', ') if item['categories'] else []
+            item['allergens'] = item['allergens'].split(', ') if item['allergens'] else []
+
+        # Dicionário para rastrear o menor ID para cada food_name_pt
+        first_food_ids = {}
+        for item in result:
+            food_name_pt = item.get('food_name_pt')
+            current_id = item.get('id')
+            if food_name_pt:
+                if food_name_pt not in first_food_ids:
+                    first_food_ids[food_name_pt] = current_id
+                else:
+                    if current_id < first_food_ids[food_name_pt]:
+                        first_food_ids[food_name_pt] = current_id
+
+        # Adicionar o atributo 'is_first' a cada item
+        for item in result:
+            food_name_pt = item.get('food_name_pt')
+            if food_name_pt and item.get('id') == first_food_ids.get(food_name_pt):
+                item['is_first'] = True
+            else:
+                item['is_first'] = False
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Erro: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @adm_foods_blueprint.route('/adm/v6/add_food', methods=['POST'])
 @jwt_required()
 def adm_add_food_v6():
@@ -618,7 +618,7 @@ def adm_add_food_v6():
             'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats', 'fibers', 'calcium', 'sodium',
             'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_b1',
             'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9', 'vitamin_b12', 'taurine', 'caffeine', 'featured',
-            'notes', 'eicosapentaenoic_acid', 'docosahexaenoic_acid', 'creatine_mg', 'purchase_link'
+            'notes_pt', 'notes_en', 'notes_es', 'eicosapentaenoic_acid', 'docosahexaenoic_acid', 'creatine_mg', 'purchase_link'
         ]
         missing_params = [param for param in expected_params if param not in data]
 
@@ -646,10 +646,10 @@ def adm_add_food_v6():
             saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
             magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
             vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
-            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link
+            notes_pt, notes_en, notes_es, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
         """
         params = (
@@ -660,7 +660,7 @@ def adm_add_food_v6():
             data['sodium'], data['magnesium'], data['iron'], data['zinc'], data['potassium'], data['vitamin_a'],
             data['vitamin_c'], data['vitamin_d'], data['vitamin_e'], data['vitamin_b1'], data['vitamin_b2'],
             data['vitamin_b3'], data['vitamin_b6'], data['vitamin_b9'], data['vitamin_b12'], data['caffeine'],
-            data['taurine'], featured, thumb_url, data['notes'], data['eicosapentaenoic_acid'],
+            data['taurine'], featured, thumb_url, data['notes_pt'], data['notes_en'], data['notes_es'], data['eicosapentaenoic_acid'],
             data['docosahexaenoic_acid'], data['creatine_mg'], data['purchase_link']
         )
         cursor.execute(sql_insert_food, params)
@@ -705,7 +705,7 @@ def adm_add_food_v6():
             saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
             magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1,
             vitamin_b2, vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, thumb_url,
-            notes, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
+            notes_pt, notes_en, notes_es, eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
             changed_by, log_type
         ) VALUES (
             %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
@@ -714,7 +714,7 @@ def adm_add_food_v6():
             %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s, %(iron)s, %(zinc)s, %(potassium)s,
             %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s, %(vitamin_b1)s, %(vitamin_b2)s,
             %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s, %(caffeine)s, %(taurine)s, %(featured)s,
-            %(thumb_url)s, %(notes)s, %(eicosapentaenoic_acid)s, %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s,
+            %(thumb_url)s, %(notes_pt)s, %(notes_en)s, %(notes_es)s, %(eicosapentaenoic_acid)s, %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s,
             %(categories)s, %(allergens)s, %(changed_by)s, %(log_type)s
         )
         """
@@ -738,7 +738,7 @@ def adm_edit_food_v6():
             'alcohol', 'total_fats', 'saturated_fats', 'monounsaturated_fats', 'polyunsaturated_fats', 'trans_fats',
             'fibers', 'calcium', 'sodium', 'magnesium', 'iron', 'zinc', 'potassium', 'vitamin_a', 'vitamin_c',
             'vitamin_d', 'vitamin_e', 'vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b6', 'vitamin_b9',
-            'vitamin_b12', 'caffeine', 'taurine', 'featured', 'notes', 'eicosapentaenoic_acid',
+            'vitamin_b12', 'caffeine', 'taurine', 'featured', 'notes_pt', 'notes_en', 'notes_es', 'eicosapentaenoic_acid',
             'docosahexaenoic_acid', 'creatine_mg', 'purchase_link'
         ]
 
@@ -795,7 +795,7 @@ def adm_edit_food_v6():
                 group_id, image_url, thumb_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
                 saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
                 magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
-                vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, notes,
+                vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, notes_pt, notes_en, notes_es,
                 eicosapentaenoic_acid, docosahexaenoic_acid, creatine_mg, purchase_link, categories, allergens,
                 changed_by, log_type
             ) VALUES (
@@ -805,7 +805,7 @@ def adm_edit_food_v6():
                 %(polyunsaturated_fats)s, %(trans_fats)s, %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s,
                 %(iron)s, %(zinc)s, %(potassium)s, %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s,
                 %(vitamin_b1)s, %(vitamin_b2)s, %(vitamin_b3)s, %(vitamin_b6)s, %(vitamin_b9)s, %(vitamin_b12)s,
-                %(caffeine)s, %(taurine)s, %(featured)s, %(notes)s, %(eicosapentaenoic_acid)s,
+                %(caffeine)s, %(taurine)s, %(featured)s, %(notes_pt)s, %(notes_en)s, %(notes_es)s, %(eicosapentaenoic_acid)s,
                 %(docosahexaenoic_acid)s, %(creatine_mg)s, %(purchase_link)s, %(categories)s, %(allergens)s,
                 %(changed_by)s, %(log_type)s
             )
