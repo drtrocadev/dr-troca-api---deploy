@@ -731,6 +731,22 @@ def adm_edit_food_v6():
 
         if 'id' not in data:
             return jsonify({"error": "Missing food ID"}), 400
+        
+                # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
+        if 'image_url' in data:
+            if data['image_url'].startswith("http"):
+                data['image_url'] = data['image_url']
+            else:
+                # Se não for uma URL válida, faz o upload da imagem e gera o link
+                image_url = upload_image_and_get_url(data['image_url'])
+                data['image_url'] = image_url
+
+                # Gera e faz o upload da miniatura
+                thumb_url = generate_and_upload_thumbnail(data['image_url'])
+                data['thumb_url'] = thumb_url  # Armazena o thumb_url no dicionário de dados
+
+            updated_data['image_url'] = data['image_url']  # Armazena a atualização
+            updated_data['thumb_url'] = data.get('thumb_url', '')  # Armazena a miniatura gerada (se houver)
 
         updatable_fields = [
             'food_name_en', 'food_name_pt', 'food_name_es', 'portion_size_en', 'portion_size_es', 'portion_size_pt',
