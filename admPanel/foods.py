@@ -729,11 +729,12 @@ def adm_edit_food_v6():
 
     try:
         data = request.json
+        print(f"Request data: {data}")  # Verificar dados recebidos
 
         if 'id' not in data:
             return jsonify({"error": "Missing food ID"}), 400
         
-                # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
+        # Atualiza a URL da imagem se fornecida, caso contrário, mantém a existente
         if 'image_url' in data:
             if data['image_url'].startswith("http"):
                 data['image_url'] = data['image_url']
@@ -768,10 +769,15 @@ def adm_edit_food_v6():
         updated_data = {field: data[field] for field in updatable_fields if field in data}
         params.append(data['id'])
 
+        print(f"Generated SQL clause: {set_clause}")  # Verificar cláusula SQL gerada
+        print(f"SQL parameters: {params}")  # Verificar parâmetros
+
         if not updated_data:
             return jsonify({"error": "No fields provided to update"}), 400
 
         sql_update_food = f"UPDATE foods SET {set_clause} WHERE id = %s"
+        print(f"SQL to execute: {sql_update_food}")  # Verificar SQL final
+
         execute_query(sql_update_food, params)
 
         delete_existing_allergens(data['id'])
@@ -779,12 +785,14 @@ def adm_edit_food_v6():
 
         if 'categories' in data:
             category_ids = [find_category(category) for category in data['categories'] if find_category(category)]
+            print(f"Category IDs: {category_ids}")  # Verificar IDs de categorias
             if category_ids:
                 update_food_categories(data['id'], category_ids)
             updated_data['categories'] = data['categories']
 
         if 'allergens' in data:
             allergen_ids = [find_allergen(allergen) for allergen in data['allergens'] if find_allergen(allergen)]
+            print(f"Allergen IDs: {allergen_ids}")  # Verificar IDs de alérgenos
             if allergen_ids:
                 update_food_allergens(data['id'], allergen_ids)
             updated_data['allergens'] = data['allergens']
@@ -792,6 +800,7 @@ def adm_edit_food_v6():
         return jsonify({"success": True, "message": "Food updated successfully"})
 
     except Exception as e:
+        print(f"Exception occurred: {e}")  # Log de exceção detalhada
         return jsonify({"error": str(e)}), 500
 
     finally:
@@ -809,7 +818,7 @@ def adm_edit_food_v6():
             sql_insert_log = """
             INSERT INTO food_update_logs (
                 food_id, food_name_en, food_name_pt, food_name_es, portion_size_en, portion_size_es, portion_size_pt,
-                group_id, image_url, thumb_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
+                group_id, image_url, weight_in_grams, calories, carbohydrates, proteins, alcohol, total_fats,
                 saturated_fats, monounsaturated_fats, polyunsaturated_fats, trans_fats, fibers, calcium, sodium,
                 magnesium, iron, zinc, potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_b1, vitamin_b2,
                 vitamin_b3, vitamin_b6, vitamin_b9, vitamin_b12, caffeine, taurine, featured, notes_pt, notes_en, notes_es,
@@ -817,7 +826,7 @@ def adm_edit_food_v6():
                 changed_by, log_type
             ) VALUES (
                 %(food_id)s, %(food_name_en)s, %(food_name_pt)s, %(food_name_es)s, %(portion_size_en)s, %(portion_size_es)s, %(portion_size_pt)s,
-                %(group_id)s, %(image_url)s, %(thumb_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s,
+                %(group_id)s, %(image_url)s, %(weight_in_grams)s, %(calories)s, %(carbohydrates)s,
                 %(proteins)s, %(alcohol)s, %(total_fats)s, %(saturated_fats)s, %(monounsaturated_fats)s,
                 %(polyunsaturated_fats)s, %(trans_fats)s, %(fibers)s, %(calcium)s, %(sodium)s, %(magnesium)s,
                 %(iron)s, %(zinc)s, %(potassium)s, %(vitamin_a)s, %(vitamin_c)s, %(vitamin_d)s, %(vitamin_e)s,
@@ -827,4 +836,6 @@ def adm_edit_food_v6():
                 %(changed_by)s, %(log_type)s
             )
             """
+            print(f"Log data: {updated_data}")  # Verificar dados para o log
             execute_query(sql_insert_log, updated_data)
+
