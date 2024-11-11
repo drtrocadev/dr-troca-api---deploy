@@ -725,6 +725,7 @@ def adm_add_food_v6():
 def adm_edit_food_v6():
     identity = get_jwt_identity()
     updated_data = {}
+    thumb_url = ""
 
     try:
         data = request.json
