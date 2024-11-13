@@ -244,30 +244,31 @@ def is_potentially_malicious(param):
 @auth_clients_blueprint.route('/v1/check_referral', methods=['POST'])
 @jwt_required()
 def check_referral():
-    referral_code = request.json.get('referral_code', None)
-    # Obter o ID do usuário a partir do token JWT
-    jwt_claims = get_jwt()
-
-    user_id = jwt_claims.get('user_id')
-    
-    if not referral_code:
-        return jsonify({"error": "Referral code is required"}), 400
-
-    # Verificar se o código de referência existe
-    sql_query = "SELECT * FROM users WHERE referral_code = %s"
-    params = (referral_code,)
-
     try:
+        referral_code = request.json.get('referral_code', None)
+        jwt_claims = get_jwt()
+        user_id = jwt_claims.get('user_id')
+
+        if not referral_code:
+            return jsonify({"error": "Referral code is required"}), 400
+
+        # Log para debug
+        print(f"Referral Code: {referral_code}, User ID: {user_id}")
+
+        sql_query = "SELECT * FROM users WHERE referral_code = %s"
+        params = (referral_code,)
+
         result = execute_query(sql_query, params, fetch_all=False)
         if result:
-            # Agora verificar se o campo invited_by do usuário atual está vazio ou nulo
-            check_invited_by_query = "SELECT invited_by FROM users WHERE id = %s"
+            check_invited_by_query = "SELECT invited_by FROM users WHERE userID = %s"
             check_params = (user_id,)
             invited_by_result = execute_query(check_invited_by_query, check_params, fetch_all=False)
 
+            # Log resultado de invited_by
+            print(f"Invited By Result: {invited_by_result}")
+
             if invited_by_result and (invited_by_result['invited_by'] is None or invited_by_result['invited_by'] == ""):
-                # Se o campo invited_by for nulo ou vazio, então faça o update
-                update_query = "UPDATE users SET invited_by = %s WHERE id = %s"
+                update_query = "UPDATE users SET invited_by = %s WHERE userID = %s"
                 update_params = (referral_code, user_id)
                 execute_query(update_query, update_params, fetch_all=False)
 
@@ -277,8 +278,10 @@ def check_referral():
         else:
             return jsonify({"error": "Invalid referral code"}), 404
     except Exception as e:
+        # Log o erro completo
+        print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
-    
+  
 
 
 # ROTAS DE EDITAR INFORMAÇÕES DOS USUÁRIOS
