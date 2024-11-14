@@ -160,10 +160,10 @@ ftp_host = '89.116.115.91'
 ftp_username = 'u994546528.painelAdm'
 ftp_password = '1hdej#@Jasu'
 ftp_port = 21
-ftp_folder = 'domains/drtroca.com.br/public_html/drtroca/foods/'
-ftp_categories_folder = 'domains/drtroca.com.br/public_html/drtroca/categories/'
-ftp_folder_recipes = 'domains/drtroca.com.br/public_html/drtroca/recipes/'
-ftp_folder_invoices = 'domains/drtroca.com.br/public_html/drtroca/invoices/'
+ftp_folder = 'arquivos/foods/'
+ftp_categories_folder = 'arquivos/categories/'
+ftp_folder_recipes = 'arquivos/recipes/'
+ftp_folder_invoices = 'arquivos/invoices/'
 
 def generate_filename():
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -204,7 +204,7 @@ def upload_image_and_get_url(image_base64):
     ftp.quit()
 
     # Retorna a URL da imagem após o upload bem-sucedido
-    return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/foods/{filename_with_suffix}"
+    return f"https://arquivos.drtroca.com.br/foods/{filename_with_suffix}"
 
 def upload_category_cover_and_get_url(image_base64):
     if not image_base64:
@@ -240,7 +240,7 @@ def upload_category_cover_and_get_url(image_base64):
     ftp.quit()
 
     # Retorna a URL da imagem após o upload bem-sucedido
-    return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/categories/{filename_with_suffix}"
+    return f"https://arquivos.drtroca.com.br/categories/{filename_with_suffix}"
    
 def upload_recipe(image_base64, filename):
     if not image_base64:
@@ -277,7 +277,7 @@ def upload_recipe(image_base64, filename):
     ftp.quit()
 
     # Retorna a URL da imagem após o upload bem-sucedido
-    return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/recipes/{filename_with_suffix}"
+    return f"https://arquivos.drtroca.com.br/recipes/{filename_with_suffix}"
 
 def upload_invoice(invoice_base64, filename):
     if not invoice_base64:
@@ -314,10 +314,9 @@ def upload_invoice(invoice_base64, filename):
     ftp.quit()
 
     # Retorna a URL da imagem após o upload bem-sucedido
-    return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/invoices/{filename_with_suffix}"
+    return f"https://arquivos.drtroca.com.br/invoices/{filename_with_suffix}"
 
-
-ftp_folder_thumbs = 'domains/drtroca.com.br/public_html/drtroca/thumbs/'
+ftp_folder_thumbs = 'arquivos/thumbs/'
 
 def generate_and_upload_thumbnail(image_input):
     """
@@ -362,7 +361,7 @@ def generate_and_upload_thumbnail(image_input):
         ftp.quit()
 
         # Return the URL of the uploaded thumbnail
-        return f"https://www.drtroca.com.br/domains/drtroca.com.br/public_html/drtroca/thumbs/{thumbnail_filename}"
+        return f"https://arquivos.drtroca.com.br/thumbs/{thumbnail_filename}"
 
     except Exception as e:
         # Handle exceptions (you might want to log this instead)

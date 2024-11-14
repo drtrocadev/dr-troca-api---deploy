@@ -168,6 +168,8 @@ def add_group():
     else:
         image_url = ''
 
+    print(image_url)
+
     # Preparar os dados para salvar no banco de dados
     db_data = {
         'name_en': data.get('name_en', ''),

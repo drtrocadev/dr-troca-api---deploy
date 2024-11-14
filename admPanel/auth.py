@@ -11,7 +11,7 @@ db_config = {
     'host': 'srv1311.hstgr.io',
     'user': 'u994546528_dr_troca_ap',
     'password': '1jdus83@L',
-    'database': 'u994546528_dr_troca_ap'
+    'database': 'u994546528_dr_troca_ap',
 }
 
 db_connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="db_pool", pool_size=5, **db_config)

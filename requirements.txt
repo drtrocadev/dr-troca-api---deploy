@@ -9,7 +9,7 @@ typing-extensions==4.7.1
 Werkzeug==2.0.2
 zipp==3.6.0
 flask_cors==3.0.10
-mysql-connector-python==8.0.26
+mysql-connector-python==9.1.0
 flask_jwt_extended
 bcrypt
 Pillow==9.0.1
