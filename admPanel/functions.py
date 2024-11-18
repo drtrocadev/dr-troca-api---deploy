@@ -164,16 +164,14 @@ ftp_folder = 'arquivos/foods/'
 ftp_categories_folder = 'arquivos/categories/'
 ftp_folder_recipes = 'arquivos/recipes/'
 ftp_folder_invoices = 'arquivos/invoices/'
+ftp_folder_thumbs = 'arquivos/thumbs/'
 
 def generate_filename():
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     random_letters = ''.join(random.choices(string.ascii_letters, k=4))
     return f"{timestamp}_{random_letters}"
 
-def upload_image_and_get_url(image_base64):
-    if not image_base64:
-        raise ValueError("Image base64 data not found")
-
+def process_image_base64(image_base64):
     # Remove espaços em branco e quebras de linha da string base64
     image_base64 = re.sub(r'\s+', '', image_base64)
 
@@ -187,6 +185,24 @@ def upload_image_and_get_url(image_base64):
 
     # Converte os dados binários para um objeto de imagem
     image = Image.open(io.BytesIO(image_data))
+
+    # Se for WebP, converte para PNG e salva os dados binários novamente
+    if image.format == "WEBP":
+        image = image.convert("RGBA")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        image_data = buffer.getvalue()
+        buffer.close()
+        # Reabre a imagem como PNG
+        image = Image.open(io.BytesIO(image_data))
+
+    return image
+
+def upload_image_and_get_url(image_base64):
+    if not image_base64:
+        raise ValueError("Image base64 data not found")
+
+    image = process_image_base64(image_base64)
 
     # Prepara o stream para salvar a imagem convertida em PNG
     image_stream = io.BytesIO()
@@ -210,19 +226,7 @@ def upload_category_cover_and_get_url(image_base64):
     if not image_base64:
         raise ValueError("Image base64 data not found")
 
-    # Remove espaços em branco e quebras de linha da string base64
-    image_base64 = re.sub(r'\s+', '', image_base64)
-
-    # Verifica se o comprimento da string é um múltiplo de 4 e adiciona o padding "=", se necessário
-    padding_needed = len(image_base64) % 4
-    if padding_needed > 0:
-        image_base64 += '=' * (4 - padding_needed)
-
-    # Decodifica a string base64 corrigida para obter os dados binários da imagem
-    image_data = base64.b64decode(image_base64)
-
-    # Converte os dados binários para um objeto de imagem
-    image = Image.open(io.BytesIO(image_data))
+    image = process_image_base64(image_base64)
 
     # Prepara o stream para salvar a imagem convertida em PNG
     image_stream = io.BytesIO()
@@ -241,26 +245,14 @@ def upload_category_cover_and_get_url(image_base64):
 
     # Retorna a URL da imagem após o upload bem-sucedido
     return f"https://arquivos.drtroca.com.br/categories/{filename_with_suffix}"
-   
+
 def upload_recipe(image_base64, filename):
     if not image_base64:
         raise ValueError("Image base64 data not found")
     if not filename:
         raise ValueError("fileName not found")
 
-    # Remove espaços em branco e quebras de linha da string base64
-    image_base64 = re.sub(r'\s+', '', image_base64)
-
-    # Verifica se o comprimento da string é um múltiplo de 4 e adiciona o padding "=", se necessário
-    padding_needed = len(image_base64) % 4
-    if padding_needed > 0:
-        image_base64 += '=' * (4 - padding_needed)
-
-    # Decodifica a string base64 corrigida para obter os dados binários da imagem
-    image_data = base64.b64decode(image_base64)
-
-    # Converte os dados binários para um objeto de imagem
-    image = Image.open(io.BytesIO(image_data))
+    image = process_image_base64(image_base64)
 
     # Prepara o stream para salvar a imagem convertida em PNG
     image_stream = io.BytesIO()
@@ -285,19 +277,7 @@ def upload_invoice(invoice_base64, filename):
     if not filename:
         raise ValueError("fileName not found")
 
-    # Remove espaços em branco e quebras de linha da string base64
-    invoice_base64 = re.sub(r'\s+', '', invoice_base64)
-
-    # Verifica se o comprimento da string é um múltiplo de 4 e adiciona o padding "=", se necessário
-    padding_needed = len(invoice_base64) % 4
-    if padding_needed > 0:
-        invoice_base64 += '=' * (4 - padding_needed)
-
-    # Decodifica a string base64 corrigida para obter os dados binários da imagem
-    image_data = base64.b64decode(invoice_base64)
-
-    # Converte os dados binários para um objeto de imagem
-    image = Image.open(io.BytesIO(image_data))
+    image = process_image_base64(invoice_base64)
 
     # Prepara o stream para salvar a imagem convertida em PNG
     image_stream = io.BytesIO()
@@ -316,13 +296,7 @@ def upload_invoice(invoice_base64, filename):
     # Retorna a URL da imagem após o upload bem-sucedido
     return f"https://arquivos.drtroca.com.br/invoices/{filename_with_suffix}"
 
-ftp_folder_thumbs = 'arquivos/thumbs/'
-
 def generate_and_upload_thumbnail(image_input):
-    """
-    Generates a thumbnail from the given image input (base64 string or URL),
-    uploads it to the FTP server, and returns the thumbnail URL.
-    """
     try:
         if image_input.startswith("http"):
             # If the image_input is a URL, download the image first
@@ -332,14 +306,14 @@ def generate_and_upload_thumbnail(image_input):
             image_data = response.content
         else:
             # If the image_input is a base64 string, decode it
-            image_base64 = re.sub(r'\s+', '', image_input)
-            padding_needed = len(image_base64) % 4
-            if padding_needed > 0:
-                image_base64 += '=' * (4 - padding_needed)
-            image_data = base64.b64decode(image_base64)
+            image_data = process_image_base64(image_input)
 
         # Open the image using PIL
         image = Image.open(io.BytesIO(image_data))
+
+        # If WebP, convert to PNG
+        if image.format == "WEBP":
+            image = image.convert("RGBA")
 
         # Create a thumbnail (e.g., 128x128 pixels)
         thumbnail_size = (128, 128)
@@ -364,6 +338,5 @@ def generate_and_upload_thumbnail(image_input):
         return f"https://arquivos.drtroca.com.br/thumbs/{thumbnail_filename}"
 
     except Exception as e:
-        # Handle exceptions (you might want to log this instead)
         print(f"Error generating/uploading thumbnail: {e}")
         raise e
