@@ -322,10 +322,6 @@ def generate_and_upload_thumbnail(image_input):
         # Open the image using PIL
         image = Image.open(io.BytesIO(image_data))
 
-        # If WebP, convert to PNG
-        if image.format == "WEBP":
-            image = image.convert("RGBA")
-
         # Create a thumbnail (e.g., 128x128 pixels)
         thumbnail_size = (128, 128)
         image.thumbnail(thumbnail_size)
