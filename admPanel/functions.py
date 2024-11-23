@@ -3,7 +3,7 @@ import base64
 import re
 from ftplib import FTP
 import io
-from PIL import Image
+from PIL import Image, features
 from datetime import datetime
 import random
 import string
@@ -175,29 +175,40 @@ def process_image_base64(image_base64):
     # Remove espaços em branco e quebras de linha da string base64
     image_base64 = re.sub(r'\s+', '', image_base64)
 
-    # Verifica se o comprimento da string é um múltiplo de 4 e adiciona o padding "=", se necessário
+    # Verifica se o comprimento da string é um múltiplo de 4 e adiciona o padding "="
     padding_needed = len(image_base64) % 4
     if padding_needed > 0:
         image_base64 += '=' * (4 - padding_needed)
 
-    # Decodifica a string base64 corrigida para obter os dados binários da imagem
-    image_data = base64.b64decode(image_base64)
+    try:
+        # Decodifica a string base64 para obter os dados binários da imagem
+        image_data = base64.b64decode(image_base64, validate=True)
+    except Exception as e:
+        raise ValueError("String base64 inválida.") from e
 
-    # Converte os dados binários para um objeto de imagem
-    image = Image.open(io.BytesIO(image_data))
+    # Abre os dados binários como uma imagem
+    try:
+        image = Image.open(io.BytesIO(image_data))
+    except Exception as e:
+        raise ValueError("Erro ao abrir a imagem.") from e
 
-    # Se for WebP, converte para PNG e salva os dados binários novamente
-    if image.format == "WEBP":
-        image = image.convert("RGBA")
+    # Verifica suporte WebP
+    if image.format == "WEBP" and features.check("webp"):
+        # Converte para RGBA se necessário
+        if image.mode not in ("RGBA", "RGB"):
+            image = image.convert("RGBA")
+
+        # Converte para PNG
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")
+        buffer.seek(0)
         image_data = buffer.getvalue()
         buffer.close()
+
         # Reabre a imagem como PNG
         image = Image.open(io.BytesIO(image_data))
-
+    
     return image
-
 def upload_image_and_get_url(image_base64):
     if not image_base64:
         raise ValueError("Image base64 data not found")
