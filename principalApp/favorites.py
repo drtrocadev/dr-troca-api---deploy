@@ -519,10 +519,13 @@ def list_favorite_exchanges_v2():
 @jwt_required()
 def save_meal_v1():
     data = request.json
+    print("Received data:", data)
+    
     meal_name = data.get('meal_name')
     jwt_claims = get_jwt()
     user_id = jwt_claims.get('user_id')
-    
+    print("JWT Claims:", jwt_claims)
+
     # Convertendo change_type_id para string, permitindo o valor 0
     change_type_id = data.get('change_type_id')
     if change_type_id is not None:
@@ -531,30 +534,36 @@ def save_meal_v1():
     is_original = data.get('is_original', False)
     meal_exchanges_favorites = data.get('meal_exchanges_favorites', [])
 
-    print(data)
+    print("Parsed data - meal_name:", meal_name, ", change_type_id:", change_type_id,
+          ", is_original:", is_original, ", meal_exchanges_favorites:", meal_exchanges_favorites)
 
     if not meal_name or change_type_id is None:
-        print("Meal name and change type are required")
+        print("Validation failed: Meal name and change type are required")
         return jsonify({'status': 'error', 'message': 'Meal name and change type are required'}), 400
 
     if not meal_exchanges_favorites:
-        print("No meal exchanges provided")
+        print("Validation failed: No meal exchanges provided")
         return jsonify({'status': 'error', 'message': 'No meal exchanges provided'}), 400
 
     try:
+        print("Connecting to the database...")
         connection = db_connection_pool.get_connection()
         cursor = connection.cursor(dictionary=True)
         connection.start_transaction()
+        print("Database connection established.")
 
         # Inserir o meal e obter o meal_id
         meal_insert_query = """
             INSERT INTO meals (meal_name, user_id, change_type_id, is_original) 
             VALUES (%s, %s, %s, %s)
         """
+        print("Executing meal insert query...")
         cursor.execute(meal_insert_query, (meal_name, user_id, change_type_id, is_original))
         meal_id = cursor.lastrowid
+        print("Meal inserted with ID:", meal_id)
 
         if not meal_id:
+            print("Failed to insert meal. Rolling back transaction.")
             connection.rollback()
             return jsonify({'status': 'error', 'message': 'Failed to insert meal'}), 400
 
@@ -564,7 +573,9 @@ def save_meal_v1():
             (meal_id, food_id, group_id, grams_or_calories, value_to_convert) 
             VALUES (%s, %s, %s, %s, %s)
         """
+        print("Inserting meal exchanges...")
         for exchange in meal_exchanges_favorites:
+            print("Inserting exchange:", exchange)
             cursor.execute(meal_exchange_insert_query, (
                 meal_id, 
                 exchange.get('food_id'), 
@@ -572,6 +583,7 @@ def save_meal_v1():
                 exchange.get('grams_or_calories'), 
                 exchange.get('value_to_convert')
             ))
+        print("Meal exchanges inserted successfully.")
 
         # Consultar o meal recém-criado para retornar no formato especificado
         meal_select_query = """
@@ -579,27 +591,37 @@ def save_meal_v1():
             FROM meals 
             WHERE meal_id = %s
         """
+        print("Retrieving created meal...")
         cursor.execute(meal_select_query, (meal_id,))
         meal = cursor.fetchone()
+        print("Meal retrieved:", meal)
 
         if not meal:
+            print("Failed to retrieve meal. Rolling back transaction.")
             connection.rollback()
             return jsonify({'status': 'error', 'message': 'Failed to retrieve meal'}), 400
         
         meal['is_original'] = bool(meal['is_original'])
 
+        print("Committing transaction...")
         connection.commit()
+        print("Transaction committed successfully.")
         return jsonify(meal), 201
 
     except Exception as e:
+        print("Exception occurred:", str(e))
         connection.rollback()
+        print("Transaction rolled back due to error.")
         return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 400
 
     finally:
         if cursor:
+            print("Closing cursor.")
             cursor.close()
         if connection:
+            print("Closing database connection.")
             connection.close()
+
             
 @favorites_blueprint.route('/v1/delete_meal', methods=['DELETE'])
 @jwt_required()
