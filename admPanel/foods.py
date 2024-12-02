@@ -200,12 +200,19 @@ def add_group():
     return jsonify({'message': 'Data saved successfully', 'group_id': group_id}), 201
 
 @adm_foods_blueprint.route('/adm/v1/delete_group/<int:id>', methods=['DELETE'])
-def delete_item(id):
-    # Query SQL para deletar um item pelo id
-    query = "DELETE FROM groups WHERE id = %(id)s"
-    
+def delete_item(id):    
     try:
-        # Executar a query usando a função existente
+        query = """
+        WITH updated_foods AS (
+            UPDATE foods
+            SET group_id = 99
+            WHERE group_id = %(id)s
+            RETURNING group_id
+        )
+        DELETE FROM groups
+        WHERE id = %(id)s;
+        """
+
         execute_query(query, {'id': id})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
