@@ -200,37 +200,30 @@ def find_daily_similar_foods(all_foods_of_group, actual_food, grams_or_calories,
     
 def find_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calories, value_to_convert, main_nutrient):
     try:
-        print(float(value_to_convert))
         similar_foods = []
         update_factor = 0.0
-        print(f"base {actual_food['weight_in_grams']}")
 
         if grams_or_calories == "grams":
             weight_in_grams = float(actual_food['weight_in_grams'])
             update_factor = float(value_to_convert) / weight_in_grams if weight_in_grams != 0 else 1.0
-            print(f"update_factor {update_factor}")
             for property in properties_to_update:
                 value = float(actual_food[property]) * update_factor
                 actual_food[property] = f"{round(value, 2)}"
         elif grams_or_calories == "calories":
             calories = float(actual_food['calories'])
             update_factor = float(value_to_convert) / calories if calories != 0 else 1.0
-            print(f"update_factor {update_factor}")
             for property in properties_to_update:
                 value = float(actual_food[property]) * update_factor
                 actual_food[property] = f"{round(value, 2)}"
         else:
             return []
 
-        print(f"main_nutrient {main_nutrient}")
-        print(f"actual_food[main_nutrient] {actual_food[main_nutrient]}")
         maximum_allowed = float(actual_food[main_nutrient]) * multiplier_upper
         minimum_allowed = float(actual_food[main_nutrient]) * multiplier_lower
 
         for food in all_foods_of_group:
             if food['id'] == actual_food['id']:
                 continue  # Skip the actual food itself
-            print(food['food_name_pt'])
 
             food_calories = float(food['calories'])
             local_update_factor = float(actual_food['calories']) / food_calories if food_calories != 0 else 1.0
@@ -241,10 +234,6 @@ def find_hangry_similar_foods(all_foods_of_group, actual_food, grams_or_calories
                 food[property] = f"{round(new_value, 2)}"
 
             if minimum_allowed <= float(food[main_nutrient]) <= maximum_allowed:
-                print(f"minimo {minimum_allowed}")
-                print("atual")
-                print(f"atual {food[main_nutrient]}")
-                print(f"maximo {maximum_allowed}")
                 if float(actual_food['weight_in_grams']) > float(food["weight_in_grams"]):
                     similar_foods.append(food)
 

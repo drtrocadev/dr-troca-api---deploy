@@ -103,7 +103,9 @@ def register_clients():
             "user_id": str(user_id)
         }
 
-        access_token = create_access_token(identity=email, additional_claims=additional_claims)
+        expires_in = timedelta(days=365)
+
+        access_token = create_access_token(identity=email, expires_delta=expires_in, additional_claims=additional_claims)
 
         connection.commit()
 
