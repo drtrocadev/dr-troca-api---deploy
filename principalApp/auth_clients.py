@@ -71,45 +71,60 @@ def register_clients():
     connection = None
     cursor = None
     try:
+        print("[REGISTER] - Iniciando o registro do cliente")
 
         timestamp_atual = int(time.time())
+        print(f"[REGISTER] - Timestamp atual: {timestamp_atual}")
 
         connection = db_connection_pool.get_connection()
+        print("[REGISTER] - Conexão com o banco de dados estabelecida")
         cursor = connection.cursor(dictionary=True)
 
         data = request.get_json()
+        print(f"[REGISTER] - Dados recebidos: {data}")
+
         email = data['email']
         password = data['password']
         name = data['name']
 
+        print(f"[REGISTER] - Validando o email: {email}")
         if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
+            print("[ERROR] - Formato de email inválido")
             return jsonify({"statusCode": "400", "message": "Invalid email format"}), 400
 
+        print(f"[REGISTER] - Verificando se o email já está registrado: {email}")
         check_query = "SELECT * FROM users WHERE email = %s"
         cursor.execute(check_query, (email,))
         if cursor.fetchone():
+            print("[ERROR] - Email já registrado")
             return jsonify({"statusCode": "409", "message": "Email already registered"}), 409
 
+        print("[REGISTER] - Gerando hash da senha")
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
+        print("[REGISTER] - Gerando código único de referência")
         unique_code = create_unique_code(cursor)
 
+        print("[REGISTER] - Inserindo dados do usuário no banco de dados")
         insert_query = "INSERT INTO users (name, email, password, referral_code, password_change_timestamp, actual_money) VALUES (%s, %s, %s, %s, %s, %s)"
         cursor.execute(insert_query, (name, email, hashed_password, unique_code, timestamp_atual, 0.0))
 
-        user_id = cursor.lastrowid 
+        user_id = cursor.lastrowid
+        print(f"[REGISTER] - Usuário criado com ID: {user_id}")
+
         additional_claims = {
             "password_change_timestamp": str(timestamp_atual),
             "user_id": str(user_id)
         }
 
         expires_in = timedelta(days=365)
-
+        print("[REGISTER] - Criando token de acesso")
         access_token = create_access_token(identity=email, expires_delta=expires_in, additional_claims=additional_claims)
 
         connection.commit()
+        print("[REGISTER] - Transação confirmada no banco de dados")
 
-        # Fetch the actual_money after committing the transaction
+        print(f"[REGISTER] - Buscando o saldo inicial do usuário com ID: {user_id}")
         cursor.execute("SELECT actual_money FROM users WHERE userID = %s", (user_id,))
         actual_money = cursor.fetchone()["actual_money"]
 
@@ -127,16 +142,21 @@ def register_clients():
             "actual_money": actual_money
         }
 
+        print("[REGISTER] - Registro do cliente concluído com sucesso")
         return jsonify({"statusCode": "200", "message": "Registration successful", "access_token": access_token, "user_info": user_info}), 200
 
     except Exception as e:
+        print(f"[ERROR] - Ocorreu um erro: {str(e)}")
         if connection:
             connection.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
+        print("[REGISTER] - Finalizando operação")
         if cursor:
+            print("[REGISTER] - Fechando cursor")
             cursor.close()
         if connection:
+            print("[REGISTER] - Fechando conexão com o banco de dados")
             connection.close()
 
 @auth_clients_blueprint.route('/v1/token_validation', methods=['GET'])
