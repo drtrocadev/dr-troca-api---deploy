@@ -16,38 +16,63 @@ auth_clients_blueprint = Blueprint('auth_clients', __name__)
 @auth_clients_blueprint.route('/v1/login_client', methods=['POST'])
 def login_clients():
     try:
+        print("[LOGIN] - Iniciando o processo de login")
+
         data = request.get_json()
+        print(f"[LOGIN] - Dados recebidos: {data}")
+
         email = data['email']
         password = data['password']
 
+        print(f"[LOGIN] - Verificando se o email está registrado: {email}")
         query = "SELECT * FROM users WHERE email = %s"
         user = execute_query(query, (email,), fetch_all=False)
 
-        if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
-            # Omita a senha ao preparar a resposta
+        if user:
+            print(f"[LOGIN] - Usuário encontrado: {user['email']}")
+        else:
+            print(f"[LOGIN] - Usuário não encontrado para o email: {email}")
+            return jsonify({"statusCode": "401", "message": "Invalid email or password"}), 401
+
+        print("[LOGIN] - Verificando a senha")
+        if bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+            print("[LOGIN] - Senha válida")
+
+            # Omitir a senha ao preparar a resposta
             user_info = {key: user[key] for key in user if key != 'password'}
 
-            # Verifica se o request é de um dispositivo móvel
-            user_agent = request.headers.get('User-Agent').lower()
+            print("[LOGIN] - Determinando tipo de dispositivo")
+            user_agent = request.headers.get('User-Agent', '').lower()
             is_mobile = bool(re.search(r"android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini", user_agent))
 
             if is_mobile:
-                expires_in = timedelta(days=365)  # Define a expiração para 365 dias para dispositivos móveis
+                expires_in = timedelta(days=365)  # Expiração para 365 dias para dispositivos móveis
+                print("[LOGIN] - Dispositivo identificado como móvel. Token válido por 365 dias.")
             else:
-                expires_in = timedelta(days=15)  # Define a expiração para 15 dias para outros dispositivos
-            
+                expires_in = timedelta(days=15)  # Expiração para 15 dias para outros dispositivos
+                print("[LOGIN] - Dispositivo identificado como não móvel. Token válido por 15 dias.")
+
             additional_claims = {
                 "password_change_timestamp": str(user["password_change_timestamp"]),
                 "user_id": str(user_info["userID"])
             }
-            
+
+            print("[LOGIN] - Gerando token de acesso")
             access_token = create_access_token(identity=email, expires_delta=expires_in, additional_claims=additional_claims)
-            return jsonify({"statusCode": "200", "message": "Login successful", "access_token": access_token, "user_info": user_info}), 200
+
+            print("[LOGIN] - Login bem-sucedido")
+            return jsonify({
+                "statusCode": "200",
+                "message": "Login successful",
+                "access_token": access_token,
+                "user_info": user_info
+            }), 200
         else:
+            print("[LOGIN] - Senha inválida")
             return jsonify({"statusCode": "401", "message": "Invalid email or password"}), 401
 
     except Exception as e:
-        # Tratamento de outras exceções
+        print(f"[ERROR] - Ocorreu um erro no login: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
     
