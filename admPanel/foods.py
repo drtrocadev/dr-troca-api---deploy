@@ -1,4 +1,5 @@
 from datetime import datetime
+import concurrent
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 import time
@@ -545,6 +546,7 @@ def adm_add_food_v5():
         """
 
         execute_query(sql_insert_log, log_data)
+        process_foods()
 
 
 # NOVOS CAMPOS O MODELO DE FOOD
@@ -728,6 +730,7 @@ def adm_add_food_v6():
         )
         """
         execute_query(sql_insert_log, log_data)
+        process_foods()
 
 @adm_foods_blueprint.route('/adm/v6/edit_food', methods=['POST'])
 @jwt_required()
@@ -848,3 +851,104 @@ def adm_edit_food_v6():
             print(f"Log data: {updated_data}")  # Verificar dados para o log
             execute_query(sql_insert_log, updated_data)
 
+
+
+@adm_foods_blueprint.route('/updateThumbs', methods=['GET'])
+def updateThumbs():
+    process_foods()
+    return "started"
+
+def process_foods(batch_size=50):
+    """
+    Processa os itens da tabela foods, gera thumbnails e atualiza a coluna thumb_url no banco de dados.
+
+    Args:
+        batch_size (int): Quantidade de registros a serem processados por lote.
+
+    Returns:
+        dict: Um resumo do processamento contendo o total de registros processados e o número de sucessos.
+    """
+    total_processed = 0
+    total_success = 0
+
+    while True:
+        # Passo 1: Recuperar um lote de registros com thumb_url NULL
+        print(f"Recuperando um lote de até {batch_size} registros com thumb_url NULL...")
+        select_query = """
+            SELECT id, image_url 
+            FROM foods 
+            WHERE thumb_url = '' OR thumb_url IS NULL
+            LIMIT %s
+        """
+        foods = execute_query_with_params(select_query, params=(batch_size,), fetch_all=True)
+
+        if not foods:
+            print("Nenhum registro restante para processar.")
+            break
+
+        current_batch_size = len(foods)
+        print(f"Lote atual: {current_batch_size} registros.")
+
+        # Passo 2: Processar as imagens em paralelo
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_food = {executor.submit(process_food_item, food): food for food in foods}
+            for future in concurrent.futures.as_completed(future_to_food):
+                food = future_to_food[future]
+                try:
+                    food_id, thumb_url = future.result()
+                    if thumb_url:
+                        results.append((food_id, thumb_url))
+                        total_success += 1
+                except Exception as exc:
+                    print(f"ID {food['id']} gerou uma exceção: {exc}")
+                total_processed += 1
+
+        print(f"Lote de {current_batch_size} processado. Sucesso: {len(results)}, Falhas: {current_batch_size - len(results)}.")
+
+        if not results:
+            print("Nenhuma thumbnail foi gerada com sucesso neste lote. Pulando atualização.")
+            continue
+
+        # Passo 3: Atualizar a coluna thumb_url com as URLs geradas
+        print(f"Atualizando a coluna 'thumb_url' para {len(results)} registros...")
+        # Construir a query de atualização com CASE WHEN
+        update_query = "UPDATE foods SET thumb_url = CASE id "
+        params = []
+        for food_id, thumb_url in results:
+            update_query += "WHEN %s THEN %s "
+            params.extend([food_id, thumb_url])
+        update_query += "END WHERE id IN (" + ",".join(["%s"] * len(results)) + ")"
+        # Adicionar os ids novamente para a cláusula IN
+        ids = [food_id for food_id, _ in results]
+        params.extend(ids)
+
+        try:
+            execute_query_with_params(update_query, params, should_commit=True)
+            print(f"Atualização concluída para {len(results)} registros.")
+        except Exception as e:
+            print(f"Erro ao atualizar a coluna 'thumb_url': {e}")
+
+    print(f"Processamento concluído. Total de registros processados: {total_processed}. Thumbnails geradas com sucesso: {total_success}.")
+    
+    # Retornar o resumo do processamento
+    return {
+        "total_processed": total_processed,
+        "total_success": total_success
+    }
+
+def process_food_item(food_item):
+    """
+    Processa um único item da tabela foods:
+    - Gera a thumbnail
+    - Retorna o id e o thumb_url
+    """
+    food_id = food_item['id']
+    image_url = food_item['image_url']
+    try:
+        thumb_url = generate_and_upload_thumbnail(image_url)
+        print(f"Thumbnail gerada para ID {food_id}")
+        return (food_id, thumb_url)
+    except Exception as e:
+        print(f"Falha ao processar ID {food_id}: {e}")
+        return (food_id, None)
