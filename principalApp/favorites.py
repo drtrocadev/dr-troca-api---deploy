@@ -119,17 +119,29 @@ def add_favorite_food_v1():
         insert_result = ThreadResult()
         fetch_result = ThreadResult()
 
-        # Função para inserir o favorito
+        # Função para inserir o favorito ou retornar sucesso se já existir
         def insert_favorite(result):
             try:
+                # Verificar se o favorito já existe
+                check_query = """
+                    SELECT COUNT(*) FROM favorites WHERE user_id = %s AND food_id = %s;
+                """
+                exists = execute_query_with_params(check_query, (user_id, food_id), fetch_all=False)
+
+                if exists and exists[0] > 0:  # Se o favorito já existe
+                    result.result = "Already exists"
+                    return
+
+                # Inserir o favorito
                 insert_favorite_query = """
-                    INSERT IGNORE INTO favorites (user_id, food_id) 
+                    INSERT INTO favorites (user_id, food_id) 
                     VALUES (%s, %s);
                 """
                 execute_query_with_params(insert_favorite_query, (user_id, food_id), should_commit=True)
                 result.result = True
             except Exception as e:
                 result.exception = e
+
 
         # Função para recuperar os dados do alimento
         def fetch_food_data(result):
@@ -334,8 +346,9 @@ def add_favorite_exchange_v2():
         user_id = jwt_claims.get('user_id')
         print(user_id)
 
+        # Obter o corpo da requisição
         try:
-            data = request.get_json(force=True)  # Force parsing the JSON payload
+            data = request.get_json(force=True)
         except Exception as e:
             print("JSON parsing error:", str(e))
             return jsonify({"statusCode": "400", "message": "Invalid JSON format"}), 400
@@ -347,22 +360,19 @@ def add_favorite_exchange_v2():
         else:
             return jsonify({"statusCode": "400", "message": "food_info is required"}), 400
 
-        # Combined query to check existence of food and group
+        # Verificar se já existe um registro igual no banco de dados
         check_query = """
-            SELECT 
-                (SELECT COUNT(*) FROM foods WHERE id = %s) AS food_exists, 
-                (SELECT COUNT(*) FROM groups WHERE id = %s) AS group_exists
+            SELECT id FROM exchanges_favorite 
+            WHERE user_id = %s AND food_id = %s AND group_id = %s
         """
-        check_params = (food_id, group_id)
+        check_params = (user_id, food_id, group_id)
+        existing_record = execute_query_with_params(check_query, check_params, fetch_all=False)
 
-        result = execute_query_with_params(check_query, check_params, fetch_all=False, should_commit=False)
+        if existing_record:  # Se já existir, retornar sucesso com o registro atual
+            data['id'] = existing_record['id']
+            return jsonify(data), 201
 
-        if result['food_exists'] == 0:
-            return jsonify({'error': 'Food item not found'}), 404
-        if result['group_exists'] == 0:
-            return jsonify({'error': 'Group not found'}), 404
-
-        # Insert new exchange if checks pass
+        # Inserir novo registro, já que não existe duplicata
         insert_query = """
             INSERT INTO exchanges_favorite (user_id, food_id, group_id, change_type_id, grams_or_calories, value_to_convert)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -376,10 +386,8 @@ def add_favorite_exchange_v2():
             data['value_to_convert']
         )
 
-        # Execute the insert query and get the lastrowid
+        # Executar a inserção e recuperar o ID gerado
         lastrowid = execute_insert_query_with_params(insert_query, insert_params)
-
-        # Adicionar o novo id aos dados de resposta
         data['id'] = lastrowid
 
         return jsonify(data), 201
@@ -387,35 +395,67 @@ def add_favorite_exchange_v2():
         print("Exception occurred:", str(e))
         return jsonify({'error': str(e)}), 400
 
+
 @favorites_blueprint.route('/v2/remove_favorite_exchange', methods=['DELETE'])
 @jwt_required()
 def remove_favorite_exchange_v2():
     try:
+        # Logando a entrada da rota
+        print("Entrando na rota '/v2/remove_favorite_exchange'")
+
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
-        user_id = jwt_claims.get('user_id')
+        user_id = int(jwt_claims.get('user_id'))
+        print(f"ID do usuário extraído do token JWT: {user_id}")
 
         # Obter o exchange_id do corpo da requisição
-        data = request.get_json()
+        try:
+            data = request.get_json()
+            print(f"Dados recebidos no corpo da requisição: {data}")
+        except Exception as e:
+            print(f"Erro ao analisar o JSON da requisição: {str(e)}")
+            return jsonify({"error": "Invalid JSON format"}), 400
+
         exchange_id = data.get('exchange_id')
         if not exchange_id:
+            print("exchange_id ausente no corpo da requisição")
             return jsonify({"error": "Missing exchange_id in request body"}), 400
 
-        sql_query = "DELETE FROM exchanges_favorite WHERE id = %s AND user_id = %s"
-        params = (exchange_id, user_id)
-        execute_query_with_params(sql_query, params, should_commit=True)
+        print(f"exchange_id recebido: {exchange_id}")
 
+        # SQL para exclusão
+        sql_query = "DELETE FROM exchanges_favorite WHERE food_id = %s AND user_id = %s"
+        params = (exchange_id, user_id)
+        print(f"Query SQL: {sql_query}")
+        print(f"Parâmetros: {params}")
+
+        # Executar a query
+        rows_affected = execute_query_with_params(sql_query, params, should_commit=True)
+        print(f"Linhas afetadas pela query: {rows_affected}")
+
+        if rows_affected == 0:
+            print("Nenhuma linha encontrada para exclusão")
+            return jsonify({"error": "Exchange not found or not associated with the user"}), 404
+
+        print("Exclusão realizada com sucesso")
         return jsonify({'message': 'Exchange removed successfully'}), 200
+
     except Exception as e:
+        print(f"Exceção capturada: {str(e)}")
         return jsonify({'error': str(e)}), 400
+
 
 @favorites_blueprint.route('/v2/get_favorite_exchanges', methods=['GET'])
 @jwt_required()
 def list_favorite_exchanges_v2():
     try:
+        # Log inicial da função
+        print("[GET FAVORITE EXCHANGES] Iniciando o endpoint /v2/get_favorite_exchanges")
+
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
         user_id = jwt_claims.get('user_id')
+        print(f"[GET FAVORITE EXCHANGES] user_id obtido do JWT: {user_id}")
 
         # Consulta SQL para buscar as trocas favoritas do usuário com todas as informações do alimento
         query = """
@@ -487,13 +527,19 @@ def list_favorite_exchanges_v2():
         """
 
         params = (user_id,)
+        print(f"[GET FAVORITE EXCHANGES] Executando consulta com parâmetros: {params}")
+
         favorite_exchanges = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        print(f"[GET FAVORITE EXCHANGES] Resultados da consulta obtidos: {len(favorite_exchanges)} registros encontrados")
 
         # Processar os resultados usando a função process_food_item_dynamic
         processed_exchanges = []
-        for exchange in favorite_exchanges:
+        for index, exchange in enumerate(favorite_exchanges):
+            print(f"[GET FAVORITE EXCHANGES] Processando troca favorita {index + 1}/{len(favorite_exchanges)}")
+
             # Processar cada alimento de forma dinâmica
             food_info = process_food_item_dynamic(exchange)
+            print(f"[GET FAVORITE EXCHANGES] Informações do alimento processadas: {food_info}")
 
             # Preparar o item com as informações da troca favorita
             favorite_item = {
@@ -509,9 +555,13 @@ def list_favorite_exchanges_v2():
 
             processed_exchanges.append(favorite_item)
 
+        print(f"[GET FAVORITE EXCHANGES] Processamento concluído. Total de trocas favoritas processadas: {len(processed_exchanges)}")
+
         return jsonify(processed_exchanges), 200
     except Exception as e:
+        print(f"[GET FAVORITE EXCHANGES] Erro: {str(e)}")
         return jsonify({'error': str(e)}), 400
+
 
 # Rotas para Meals
 
@@ -710,21 +760,31 @@ def get_meals_v3():
 @jwt_required()
 def get_original_meals_v2():
     try:
+        # Log inicial da função
+        print("[GET ORIGINAL MEALS] Iniciando o endpoint /v2/get_original_meals")
+
         # Obter o ID do usuário a partir do token JWT
         jwt_claims = get_jwt()
         user_id = jwt_claims.get('user_id')
+        print(f"[GET ORIGINAL MEALS] user_id obtido do JWT: {user_id}")
 
         # Consulta SQL para buscar as refeições originais do usuário
         query = "SELECT * FROM meals WHERE user_id = %s AND is_original = 1"
         params = (user_id,)
+        print(f"[GET ORIGINAL MEALS] Executando consulta com parâmetros: {params}")
+
         meals = execute_query_with_params(query, params, fetch_all=True, should_commit=False)
+        print(f"[GET ORIGINAL MEALS] Resultados da consulta obtidos: {len(meals)} registros encontrados")
 
         # Converter 'is_original' para booleano em cada refeição
-        for meal in meals:
+        for index, meal in enumerate(meals):
             meal['is_original'] = bool(meal['is_original'])
+            print(f"[GET ORIGINAL MEALS] Refeição {index + 1}/{len(meals)} processada: {meal}")
 
+        print("[GET ORIGINAL MEALS] Processamento concluído. Retornando resultados.")
         return jsonify(meals), 200
-    except Exception as e: 
+    except Exception as e:
+        print(f"[GET ORIGINAL MEALS] Erro: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @favorites_blueprint.route('/v1/get_foods_from_favorite_meal', methods=['POST'])
