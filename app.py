@@ -39,58 +39,70 @@ app.register_blueprint(adm_monetization_blueprint)
 app.register_blueprint(favorites_blueprint)
 app.register_blueprint(adm_users_blueprint)
 
+import datetime
+from mysql.connector import pooling
+
+# exemplo de pool; ajuste conforme sua configuração
+db_connection_pool = pooling.MySQLConnectionPool(
+    pool_name="mypool",
+    pool_size=5,
+    host="seu_host",
+    user="seu_usuario",
+    password="sua_senha",
+    database="seu_banco"
+)
+
 def finish_pending_transactions():
     print(f"Tarefa diária executada em: {datetime.datetime.now()}")
+    connection = None
+    cursor = None
+
     try:
         # Obter conexão do pool
         connection = db_connection_pool.get_connection()
-
-        # Iniciar uma transação
         cursor = connection.cursor()
 
-        # 1. Selecionar os registros da tabela pending_transactions que foram criados há 7 dias,
-        # e cujo status não seja 'FINISHED', incluindo o campo in_app_transaction_id
+        # 1. Selecionar registros criados há 7 dias e ainda não finalizados (status != 1)
         select_query = """
-        SELECT user_id, type, amount, status, transaction_date, secondary_user_id, invoice_url, recipe_url, in_app_transaction_id
+        SELECT user_id, type, amount, status, transaction_date,
+               secondary_user_id, invoice_url, recipe_url, in_app_transaction_id
         FROM pending_transactions
         WHERE transaction_date <= NOW() - INTERVAL 7 DAY
-        AND status != 'FINISHED';
+          AND status != 1;
         """
         cursor.execute(select_query)
         pending_transactions = cursor.fetchall()
 
-        # 2. Inserir os registros na tabela transactions, incluindo o campo in_app_transaction_id
         if pending_transactions:
+            # 2. Inserir registros na tabela transactions
             insert_query = """
-            INSERT INTO transactions (user_id, type, amount, status, transaction_date, secondary_user_id, invoice_url, recipe_url, in_app_transaction_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+            INSERT INTO transactions (
+                user_id, type, amount, status, transaction_date,
+                secondary_user_id, invoice_url, recipe_url, in_app_transaction_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
             cursor.executemany(insert_query, pending_transactions)
 
-            # 3. Atualizar os registros na tabela pending_transactions, alterando o status para 'FINISHED'
+            # 3. Atualizar para marcado como finalizado (status = 1)
             update_query = """
             UPDATE pending_transactions
-            SET status = 'FINISHED'
+            SET status = 1
             WHERE transaction_date <= NOW() - INTERVAL 7 DAY
-            AND status != 'FINISHED';
+              AND status != 1;
             """
             cursor.execute(update_query)
 
-            # Confirmar a transação
             connection.commit()
-            print(f"{cursor.rowcount} transações migradas e atualizadas com sucesso.")
-
+            print(f"{cursor.rowcount} transações migradas e marcadas como finalizadas.")
         else:
             print("Nenhuma transação pendente para migrar.")
-    
+
     except Exception as e:
-        # Caso ocorra um erro, reverter a transação
         if connection:
             connection.rollback()
         print(f"Ocorreu um erro durante a migração: {e}")
-    
+
     finally:
-        # Garantir que a conexão seja fechada no final
         if cursor:
             cursor.close()
         if connection:
@@ -105,4 +117,4 @@ atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
