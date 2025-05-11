@@ -70,17 +70,34 @@ def finish_pending_transactions():
             """
             cursor.executemany(insert_query, pending_transactions)
 
+            # 2.1. Acumular total por usuário
+            user_amounts = {}
+            for row in pending_transactions:
+                user_id = row[0]
+                amount = row[2]
+                user_amounts[user_id] = user_amounts.get(user_id, 0) + amount
+
             # 3. Atualizar para marcado como finalizado (status = 1)
-            update_query = """
+            update_pending = """
             UPDATE pending_transactions
             SET status = 1
             WHERE transaction_date <= NOW() - INTERVAL 7 DAY
               AND status != 1;
             """
-            cursor.execute(update_query)
+            cursor.execute(update_pending)
+
+            # 4. Atualizar actual_money de cada usuário
+            update_user = """
+            UPDATE user
+            SET actual_money = actual_money + %s
+            WHERE id = %s;
+            """
+            # para cada par (user_id, soma_amount), executa o update
+            for user_id, total_amount in user_amounts.items():
+                cursor.execute(update_user, (total_amount, user_id))
 
             connection.commit()
-            print(f"{cursor.rowcount} transações migradas e marcadas como finalizadas.")
+            print(f"{cursor.rowcount} transações migradas e usuários atualizados.")
         else:
             print("Nenhuma transação pendente para migrar.")
 
@@ -94,7 +111,6 @@ def finish_pending_transactions():
             cursor.close()
         if connection:
             connection.close()
-
 scheduler = BackgroundScheduler()
 #scheduler.add_job(func=finish_pending_transactions, trigger="interval", seconds=10)
 scheduler.add_job(func=finish_pending_transactions, trigger="cron", hour=2, minute=0)
