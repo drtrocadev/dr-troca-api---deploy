@@ -39,19 +39,6 @@ app.register_blueprint(adm_monetization_blueprint)
 app.register_blueprint(favorites_blueprint)
 app.register_blueprint(adm_users_blueprint)
 
-import datetime
-from mysql.connector import pooling
-
-# exemplo de pool; ajuste conforme sua configuração
-db_connection_pool = pooling.MySQLConnectionPool(
-    pool_name="mypool",
-    pool_size=5,
-    host="seu_host",
-    user="seu_usuario",
-    password="sua_senha",
-    database="seu_banco"
-)
-
 def finish_pending_transactions():
     print(f"Tarefa diária executada em: {datetime.datetime.now()}")
     connection = None
