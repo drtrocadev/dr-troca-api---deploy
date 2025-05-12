@@ -88,9 +88,9 @@ def finish_pending_transactions():
 
             # 4. Atualizar actual_money de cada usuário
             update_user = """
-            UPDATE user
+            UPDATE users
             SET actual_money = actual_money + %s
-            WHERE id = %s;
+            WHERE userID = %s;
             """
             # para cada par (user_id, soma_amount), executa o update
             for user_id, total_amount in user_amounts.items():
