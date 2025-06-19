@@ -11,42 +11,80 @@ from datetime import datetime
 
 monetization_blueprint = Blueprint('monetization_blueprint', __name__)
 
+from flask import request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+
+# NOTE: Adjust these imports to match your project structure
+# from your_project.database import db_connection_pool, execute_query_with_params
+# from your_project.auth import verify_password_change_timestamp
+# import bcrypt
+
 @monetization_blueprint.route('/v1/request_redeem', methods=['POST'])
 @jwt_required()
 def request_withdraw():
+    print("[INFO] /v1/request_redeem called")
     try:
+        # ------------------------------------------------------------------
+        # 1. Authentication & JWT validation
+        # ------------------------------------------------------------------
         current_user_email = get_jwt_identity()
         jwt_claims = get_jwt()
-        
-        valid, error_message = verify_password_change_timestamp(current_user_email, jwt_claims)
-        if not valid:
-            return jsonify({"statusCode": "401", "message": error_message}), 401
-    
-        user_id = jwt_claims.get("user_id")
-        
-        data = request.get_json()
-        password = data.get('password')
+        print(f"[DEBUG] current_user_email: {current_user_email}, jwt_claims: {jwt_claims}")
 
+        valid, error_message = verify_password_change_timestamp(current_user_email, jwt_claims)
+        print(f"[DEBUG] verify_password_change_timestamp -> valid: {valid}, error_message: {error_message}")
+        if not valid:
+            print("[WARN] Password changed after token issuance. Rejecting request.")
+            return jsonify({"statusCode": "401", "message": error_message}), 401
+
+        user_id = jwt_claims.get("user_id")
+        print(f"[DEBUG] user_id extracted: {user_id}")
+
+        # ------------------------------------------------------------------
+        # 2. Parse request body
+        # ------------------------------------------------------------------
+        data = request.get_json()
+        print(f"[DEBUG] request data: {data}")
+
+        password = data.get('password')
+        amount = data.get('amount')
+
+        # ------------------------------------------------------------------
+        # 3. Fetch user record
+        # ------------------------------------------------------------------
         query = "SELECT * FROM users WHERE userID = %s"
         user = execute_query_with_params(query, (user_id,))
+        print(f"[DEBUG] user record: {user}")
 
+        # ------------------------------------------------------------------
+        # 4. Validate credentials & business rules
+        # ------------------------------------------------------------------
         if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
-            
-            amount = data.get('amount')
-            if not amount:
+            print("[INFO] Password verified successfully")
+
+            if amount is None:
+                print("[WARN] Amount not provided in request body")
                 return jsonify({"msg": "Amount is required"}), 400
 
             current_balance = user['actual_money']
-            
+            print(f"[DEBUG] current_balance: {current_balance}, requested_amount: {amount}")
+
             if amount > current_balance:
+                # If the requested amount is greater than the current balance
+                # Reject the request with a 403 Forbidden status
+                print(f"[WARN] Requested amount {amount} exceeds current balance {current_balance}")
+                print("[WARN] Insufficient funds for withdrawal request")
                 return jsonify({"msg": "Insufficient funds"}), 403
 
-            # Start a transaction
+            # ------------------------------------------------------------------
+            # 5. Start DB transaction
+            # ------------------------------------------------------------------
             connection = db_connection_pool.get_connection()
             cursor = connection.cursor(dictionary=True)
+            print("[INFO] Database transaction started")
 
             try:
-                # Subtract the requested amount from actual_money
+                # Subtract requested amount
                 new_balance = current_balance - amount
                 update_balance_query = """
                 UPDATE users
@@ -54,34 +92,42 @@ def request_withdraw():
                 WHERE userID = %s
                 """
                 cursor.execute(update_balance_query, (new_balance, user_id))
+                print(f"[DEBUG] Updated user balance to: {new_balance}")
 
-                # Insert the withdraw request
+                # Insert withdraw request
                 insert_withdraw_query = """
                 INSERT INTO withdraw_requests (userID, amount, status)
                 VALUES (%s, %s, 'PENDING')
                 """
                 cursor.execute(insert_withdraw_query, (user_id, amount))
+                print(f"[INFO] Withdraw request inserted (amount: {amount}) for user: {user_id}")
 
-                # Commit the transaction
+                # Commit transaction
                 connection.commit()
+                print("[INFO] Transaction committed successfully")
 
                 return jsonify({"msg": "Withdraw request created successfully", "actual_money": new_balance}), 201
 
             except Exception as e:
-                # Rollback in case of an error
+                # Rollback on error
                 connection.rollback()
+                print(f"[ERROR] Exception during DB transaction: {e}")
                 return jsonify({"msg": str(e)}), 500
 
             finally:
-                # Close the cursor and the connection
+                # Cleanup
                 cursor.close()
                 connection.close()
+                print("[INFO] Database connection closed")
 
         else:
+            print("[WARN] Invalid password provided")
             return jsonify({"msg": "Invalid password"}), 401
-    
+
     except Exception as e:
+        print(f"[ERROR] Unhandled exception: {e}")
         return jsonify({"msg": str(e)}), 500
+
     
 @monetization_blueprint.route('/v1/give_credit_to_user', methods=['POST'])
 @jwt_required()
