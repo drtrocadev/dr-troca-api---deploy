@@ -69,7 +69,7 @@ def request_withdraw():
             current_balance = user['actual_money']
             print(f"[DEBUG] current_balance: {current_balance}, requested_amount: {amount}")
 
-            if amount > current_balance:
+            if amount >= current_balance:
                 # If the requested amount is greater than the current balance
                 # Reject the request with a 403 Forbidden status
                 print(f"[WARN] Requested amount {amount} exceeds current balance {current_balance}")
