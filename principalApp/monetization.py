@@ -19,16 +19,29 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 # from your_project.auth import verify_password_change_timestamp
 # import bcrypt
 
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+
+monetization_blueprint = Blueprint("monetization", __name__)
+
 @monetization_blueprint.route('/v1/request_redeem', methods=['POST'])
 @jwt_required()
 def request_withdraw():
+    """
+    Cria uma solicitação de saque para o usuário autenticado.
+    Regras de negócio:
+    - O valor solicitado deve ser numérico, positivo e <= saldo atual.
+    - Permite sacar exatamente o saldo (usa comparação '>').
+    - Usa Decimal para evitar erros de precisão.
+    """
     print("[INFO] /v1/request_redeem called")
     try:
         # ------------------------------------------------------------------
-        # 1. Authentication & JWT validation
+        # 1. Autenticação & validação do JWT
         # ------------------------------------------------------------------
         current_user_email = get_jwt_identity()
-        jwt_claims = get_jwt()
+        jwt_claims        = get_jwt()
         print(f"[DEBUG] current_user_email: {current_user_email}, jwt_claims: {jwt_claims}")
 
         valid, error_message = verify_password_change_timestamp(current_user_email, jwt_claims)
@@ -41,88 +54,97 @@ def request_withdraw():
         print(f"[DEBUG] user_id extracted: {user_id}")
 
         # ------------------------------------------------------------------
-        # 2. Parse request body
+        # 2. Parse do corpo da requisição
         # ------------------------------------------------------------------
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         print(f"[DEBUG] request data: {data}")
 
         password = data.get('password')
-        amount = data.get('amount')
+        amount   = data.get('amount')
 
         # ------------------------------------------------------------------
-        # 3. Fetch user record
+        # 3. Busca do registro do usuário
         # ------------------------------------------------------------------
         query = "SELECT * FROM users WHERE userID = %s"
-        user = execute_query_with_params(query, (user_id,))
+        user  = execute_query_with_params(query, (user_id,))
         print(f"[DEBUG] user record: {user}")
 
         # ------------------------------------------------------------------
-        # 4. Validate credentials & business rules
+        # 4. Validação de credenciais & regras de negócio
         # ------------------------------------------------------------------
-        if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
-            print("[INFO] Password verified successfully")
+        if not (user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8'))):
+            print("[WARN] Invalid password provided")
+            return jsonify({"msg": "Invalid password"}), 401
 
-            if amount is None:
-                print("[WARN] Amount not provided in request body")
-                return jsonify({"msg": "Amount is required"}), 400
+        print("[INFO] Password verified successfully")
 
-            current_balance = user['actual_money']
-            print(f"[DEBUG] current_balance: {current_balance}, requested_amount: {amount}")
+        if amount is None:
+            print("[WARN] Amount not provided in request body")
+            return jsonify({"msg": "Amount is required"}), 400
 
-            if amount >= current_balance:
-                # If the requested amount is greater than the current balance
-                # Reject the request with a 403 Forbidden status
-                print(f"[WARN] Requested amount {amount} exceeds current balance {current_balance}")
-                print("[WARN] Insufficient funds for withdrawal request")
-                return jsonify({"msg": "Insufficient funds"}), 403
+        # Converte amount para Decimal (2 casas) e garante valor positivo
+        try:
+            amount = Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        except (InvalidOperation, TypeError):
+            print("[WARN] Invalid amount format")
+            return jsonify({"msg": "Invalid amount format"}), 400
 
-            # ------------------------------------------------------------------
-            # 5. Start DB transaction
-            # ------------------------------------------------------------------
-            connection = db_connection_pool.get_connection()
-            cursor = connection.cursor(dictionary=True)
-            print("[INFO] Database transaction started")
+        if amount <= 0:
+            print("[WARN] Non-positive withdraw amount")
+            return jsonify({"msg": "Amount must be positive"}), 400
 
-            try:
-                # Subtract requested amount
-                new_balance = current_balance - amount
-                update_balance_query = """
+        current_balance = user['actual_money']          # já é Decimal
+        print(f"[DEBUG] current_balance: {current_balance}, requested_amount: {amount}")
+
+        # Agora só rejeita se for MAIOR que o saldo
+        if amount > current_balance:
+            print(f"[WARN] Requested amount {amount} exceeds current balance {current_balance}")
+            return jsonify({"msg": "Insufficient funds"}), 403
+
+        # ------------------------------------------------------------------
+        # 5. Inicia transação
+        # ------------------------------------------------------------------
+        connection = db_connection_pool.get_connection()
+        cursor     = connection.cursor(dictionary=True)
+        print("[INFO] Database transaction started")
+
+        try:
+            # Debita o valor solicitado
+            new_balance = current_balance - amount
+
+            update_balance_query = """
                 UPDATE users
                 SET actual_money = %s
                 WHERE userID = %s
-                """
-                cursor.execute(update_balance_query, (new_balance, user_id))
-                print(f"[DEBUG] Updated user balance to: {new_balance}")
+            """
+            cursor.execute(update_balance_query, (new_balance, user_id))
+            print(f"[DEBUG] Updated user balance to: {new_balance}")
 
-                # Insert withdraw request
-                insert_withdraw_query = """
+            # Insere a solicitação de saque
+            insert_withdraw_query = """
                 INSERT INTO withdraw_requests (userID, amount, status)
                 VALUES (%s, %s, 'PENDING')
-                """
-                cursor.execute(insert_withdraw_query, (user_id, amount))
-                print(f"[INFO] Withdraw request inserted (amount: {amount}) for user: {user_id}")
+            """
+            cursor.execute(insert_withdraw_query, (user_id, amount))
+            print(f"[INFO] Withdraw request inserted (amount: {amount}) for user: {user_id}")
 
-                # Commit transaction
-                connection.commit()
-                print("[INFO] Transaction committed successfully")
+            connection.commit()
+            print("[INFO] Transaction committed successfully")
 
-                return jsonify({"msg": "Withdraw request created successfully", "actual_money": new_balance}), 201
+            return jsonify({
+                "msg":           "Withdraw request created successfully",
+                "actual_money":  str(new_balance)  # devolve como string para evitar problemas de JSON com Decimal
+            }), 201
 
-            except Exception as e:
-                # Rollback on error
-                connection.rollback()
-                print(f"[ERROR] Exception during DB transaction: {e}")
-                return jsonify({"msg": str(e)}), 500
+        except Exception as e:
+            connection.rollback()
+            print(f"[ERROR] Exception during DB transaction: {e}")
+            return jsonify({"msg": str(e)}), 500
 
-            finally:
-                # Cleanup
-                cursor.close()
-                connection.close()
-                print("[INFO] Database connection closed")
-
-        else:
-            print("[WARN] Invalid password provided")
-            return jsonify({"msg": "Invalid password"}), 401
+        finally:
+            cursor.close()
+            connection.close()
+            print("[INFO] Database connection closed")
 
     except Exception as e:
         print(f"[ERROR] Unhandled exception: {e}")
