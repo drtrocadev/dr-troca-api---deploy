@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import mysql.connector.pooling
+import bcrypt
 from admPanel.functions import execute_query_with_params, execute_query_without_params
 from admPanel.auth import db_connection_pool
 
@@ -25,11 +26,14 @@ def add_adm_user():
     if email_exists['count'] > 0:
         return jsonify({'error': 'Email already exists'}), 400
 
+    # Criptografa a senha usando bcrypt
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
     sql_query = """
     INSERT INTO adm_users (name, email, password, cpf, pix_key, phone, is_subscriber, created_at)
     VALUES (%s, %s, %s, '', '', '', 0, NOW())
     """
-    params = (name, email, password)
+    params = (name, email, hashed_password)
     
     execute_query_with_params(sql_query, params, should_commit=True)
 
