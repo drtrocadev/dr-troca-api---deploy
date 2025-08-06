@@ -111,6 +111,7 @@ def finish_pending_transactions():
             cursor.close()
         if connection:
             connection.close()
+            
 scheduler = BackgroundScheduler()
 #scheduler.add_job(func=finish_pending_transactions, trigger="interval", seconds=10)
 scheduler.add_job(func=finish_pending_transactions, trigger="cron", hour=2, minute=0)
