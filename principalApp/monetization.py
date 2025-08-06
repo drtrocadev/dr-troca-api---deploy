@@ -224,7 +224,7 @@ def sign_up_with_referral():
         # Step 4: Insert a new transaction, incluindo o novo campo in_app_transaction_id
         insert_transaction_query = """
         INSERT INTO pending_transactions (user_id, type, amount, status, transaction_date, secondary_user_id, in_app_transaction_id)
-        VALUES (%s, 'CREDIT', 8.45, 1, %s, %s, %s)
+        VALUES (%s, 'CREDIT', 8.45, 0, %s, %s, %s)
         """
         cursor.execute(insert_transaction_query, (referral_user_id, datetime.now(), user_id, in_app_transaction_id))
 
