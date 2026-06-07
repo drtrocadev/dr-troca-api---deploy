@@ -8,7 +8,7 @@ from datetime import timedelta
 auth_blueprint = Blueprint('auth', __name__)
 
 db_config = {
-    'host': 'srv1896.hstgr.io',
+    'host': '193.203.175.234',
     'user': 'u994546528_dr_troca_ap',
     'password': '1jdus83@L',
     'database': 'u994546528_dr_troca_ap'
